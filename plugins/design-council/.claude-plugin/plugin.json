@@ -1,0 +1,18 @@
+{
+  "name": "design-council",
+  "version": "1.0.0",
+  "description": "Multi-model frontend design orchestration: Opus plans, Gemini codes, Opus reviews in turn-based rounds",
+  "author": {
+    "name": "User"
+  },
+  "license": "MIT",
+  "keywords": [
+    "design",
+    "frontend",
+    "multi-model",
+    "orchestration",
+    "gemini",
+    "opus",
+    "collaborative"
+  ]
+}

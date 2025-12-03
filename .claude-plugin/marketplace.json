@@ -1,0 +1,24 @@
+{
+  "name": "smartice-plugin-market",
+  "description": "SmartIce Plugin Marketplace - Design tools for Claude Code",
+  "owner": "HengWoo",
+  "version": "1.0.0",
+  "plugins": [
+    {
+      "name": "design-council",
+      "source": "./plugins/design-council",
+      "description": "Multi-model frontend design orchestration: Opus plans, Gemini codes, Opus reviews in turn-based rounds",
+      "version": "1.0.0",
+      "category": "design",
+      "keywords": ["design", "frontend", "multi-model", "gemini", "orchestration"]
+    },
+    {
+      "name": "design-council-lite",
+      "source": "./plugins/design-council-lite",
+      "description": "Lightweight multi-model frontend design: Opus plans, Gemini generates",
+      "version": "1.0.0",
+      "category": "design",
+      "keywords": ["design", "frontend", "multi-model", "gemini", "lightweight"]
+    }
+  ]
+}

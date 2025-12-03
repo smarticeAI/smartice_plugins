@@ -1,0 +1,9 @@
+{
+  "name": "design-council-lite",
+  "version": "1.0.0",
+  "description": "Lightweight multi-model frontend design: Opus plans, Gemini generates",
+  "author": {
+    "name": "User"
+  },
+  "license": "MIT"
+}

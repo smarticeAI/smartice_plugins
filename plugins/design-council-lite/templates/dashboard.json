@@ -1,0 +1,44 @@
+{
+  "name": "Dashboard Template",
+  "description": "Template for data dashboard with charts and stats",
+  "framework": "react",
+  "design_spec": {
+    "aesthetic": "industrial",
+    "typography": {
+      "heading": "Space Grotesk",
+      "body": "Inter",
+      "data": "JetBrains Mono"
+    },
+    "colors": {
+      "primary": "#3B82F6",
+      "secondary": "#10B981",
+      "background": "#0F172A",
+      "surface": "#1E293B",
+      "text": "#F8FAFC",
+      "muted": "#94A3B8",
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "layout": {
+      "sidebar_width": "280px",
+      "header_height": "64px",
+      "max_content_width": "1440px"
+    },
+    "components": [
+      "Sidebar navigation",
+      "Top header with search",
+      "Stat cards row",
+      "Main chart area",
+      "Data table",
+      "Activity feed"
+    ]
+  },
+  "requirements": [
+    "Dark theme by default",
+    "Real-time data indicators",
+    "Skeleton loading states",
+    "Responsive sidebar (collapsible on mobile)",
+    "Chart tooltips and legends"
+  ]
+}

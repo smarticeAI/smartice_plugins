@@ -1,0 +1,51 @@
+{
+  "name": "Form Template",
+  "description": "Template for accessible form components",
+  "framework": "react",
+  "design_spec": {
+    "aesthetic": "minimalist",
+    "typography": {
+      "label": "IBM Plex Sans Medium",
+      "input": "IBM Plex Sans",
+      "helper": "IBM Plex Sans"
+    },
+    "colors": {
+      "primary": "#2563EB",
+      "background": "#FFFFFF",
+      "surface": "#F9FAFB",
+      "border": "#E5E7EB",
+      "border_focus": "#2563EB",
+      "text": "#111827",
+      "placeholder": "#9CA3AF",
+      "error": "#DC2626",
+      "success": "#059669"
+    },
+    "components": [
+      "Text input with label",
+      "Textarea",
+      "Select dropdown",
+      "Checkbox group",
+      "Radio group",
+      "Date picker",
+      "File upload",
+      "Submit button"
+    ],
+    "states": [
+      "Default",
+      "Hover",
+      "Focus (with ring)",
+      "Filled",
+      "Error with message",
+      "Disabled",
+      "Loading"
+    ]
+  },
+  "requirements": [
+    "All inputs have associated labels",
+    "Error messages linked via aria-describedby",
+    "Focus ring visible (2px, primary color)",
+    "Tab order logical",
+    "Required fields marked",
+    "Client-side validation feedback"
+  ]
+}
