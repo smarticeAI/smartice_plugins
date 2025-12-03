@@ -1,0 +1,8 @@
+{
+  "name": "db-tools",
+  "version": "1.0.0",
+  "description": "数据库设计工具集，包含设计审查、规范化检查、Supabase RLS 验证等功能",
+  "author": {
+    "name": "杨睿祺"
+  }
+}
