@@ -1,7 +1,9 @@
 {
   "name": "smartice-plugin-market",
   "description": "SmartIce Plugin Marketplace - Design tools for Claude Code",
-  "owner": "HengWoo",
+  "owner": {
+    "name": "HengWoo"
+  },
   "version": "1.0.0",
   "plugins": [
     {
