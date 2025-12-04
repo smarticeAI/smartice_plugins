@@ -22,10 +22,10 @@ Add this marketplace to Claude Code:
 
 | Plugin | Description | Author |
 |--------|-------------|--------|
-| **design-council** | Multi-model frontend design with Opus + Gemini | SmartIce |
-| **design-council-lite** | Lightweight design workflow | SmartIce |
+| **design-council** | Multi-model frontend design with Opus + Gemini | HengWoo |
+| **design-council-lite** | Lightweight design workflow | HengWoo |
 | **db-tools** | Database design review & validation | 杨睿祺 |
-| **smartice-tools** | Marketplace contribution tools | SmartIce |
+| **smartice-tools** | Marketplace contribution tools | HengWoo |
 
 ---
 
