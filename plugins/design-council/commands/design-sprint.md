@@ -27,7 +27,11 @@ Parse from $ARGUMENTS:
 | **svelte** | Svelte components |
 | **nextjs** | Next.js App Router pages/components |
 
-If `--format` not specified, the design-strategist will ask the user.
+**Format Confirmation:**
+- If `--format` is provided: Show the format and ask user to confirm or change
+- If `--format` is not provided: Ask user to choose from available formats
+
+This ensures the user always has visibility into the tech stack choice.
 
 ## Staging Directory
 
@@ -62,8 +66,8 @@ Output format: [--format value or ask user]
 ```
 
 The agent will:
-1. Ask user about output format (if not specified)
-2. Interview for aesthetic preferences
+1. **Confirm output format** - If format provided, show it and ask to confirm; if not, ask user to choose
+2. Interview for aesthetic preferences (visual mood, typography style)
 3. Ask about existing brand colors or generate palette
 4. **Create color palette preview** at `./.design-sprint-staging/color-palette-preview.html`
 5. Ask user to confirm colors (open preview in browser)

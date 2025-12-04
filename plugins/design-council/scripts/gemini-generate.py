@@ -96,9 +96,9 @@ def main():
         feedback=feedback
     )
 
-    # Step 5: Call Gemini API
+    # Step 5: Call Gemini API with auto-continuation for large responses
     client = GeminiClient(api_key)
-    response = client.generate(prompt)
+    response = client.generate_with_continuation(prompt)
 
     if not response.success:
         output_error(response.error_message)
