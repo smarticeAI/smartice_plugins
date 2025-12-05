@@ -38,15 +38,16 @@ This ensures the user always has visibility into the tech stack choice.
 All generated code is written to a staging directory first:
 ```
 ./.design-sprint-staging/
+├── palette-options.html       # 4 palette choices with mini mockups
+├── typography-options.html    # 4 typography choices with previews
 ├── round-1/
-│   ├── spec.json
+│   ├── spec.json              # Final design specification
 │   ├── code/
 │   │   ├── Component.jsx (or index.html for html format)
 │   │   └── ...
 │   └── review.json
 ├── round-2/
 │   └── ...
-└── color-palette-preview.html
 ```
 
 This ensures:
@@ -57,72 +58,149 @@ This ensures:
 
 ## Workflow
 
-### Phase 1: Design Specification
+> **Architecture Note (v2):** Main Claude handles ALL user interaction. Sub-agents are non-interactive workers that return results without user prompts.
 
-Launch **design-strategist** agent:
+### Phase 1: User Interview (Main Claude - Interactive)
+
+**You (Main Claude) handle all user interaction directly:**
+
+1. **Load skill**: Use the `design-orchestration` skill for design principles
+2. **Confirm format**: Use AskUserQuestion to confirm or select output format
+3. **Interview preferences**: Use AskUserQuestion to gather:
+   - Aesthetic direction (Minimalist / Maximalist / Brutalist / etc.)
+   - Color mood (Warm / Cool / Bold / Calm / Dark / Natural)
+   - Reference image? (Yes/No - if yes, ask for file path)
+   - Target audience (Consumer / Business / Creative / Technical)
+
+4. **Generate palette options**:
+   ```bash
+   cd ${CLAUDE_PLUGIN_ROOT}/scripts && echo '{"mood": "...", "aesthetic": "...", "project": "..."}' | python3 palette-generator.py
+   ```
+
+5. **Create palette preview**:
+   ```bash
+   cd ${CLAUDE_PLUGIN_ROOT}/scripts && echo '{"palettes": [...], "project": "..."}' | python3 preview-generator.py > ./.design-sprint-staging/palette-options.html
+   ```
+   Open preview in browser, ask user to select (verbal: "Option 2")
+
+6. **Generate typography options**:
+   ```bash
+   cd ${CLAUDE_PLUGIN_ROOT}/scripts && echo '{"mood": "...", "aesthetic": "...", "project": "..."}' | python3 typography-generator.py
+   ```
+
+7. **Create typography preview**:
+   ```bash
+   cd ${CLAUDE_PLUGIN_ROOT}/scripts && echo '{"typography": [...], "project": "..."}' | python3 typography-preview-generator.py > ./.design-sprint-staging/typography-options.html
+   ```
+   Open preview, ask user to select
+
+8. **Allow mixing**: Confirm selections, allow user to mix (e.g., Palette 2 + Typography 3)
+
+9. **Create spec.json**: Write final specification to `./.design-sprint-staging/round-1/spec.json`
+
+### Phase 2: Code Generation (Sub-agent - Non-interactive)
+
+Launch **gemini-generator** agent via Task:
+
 ```
-Create a design specification for: $ARGUMENTS
-Output format: [--format value or ask user]
+Generate frontend code from the design specification.
+
+Spec path: ./.design-sprint-staging/round-1/spec.json
+Staging dir: ./.design-sprint-staging
+Round: 1
+
+Write code to staging directory and return summary only (not full code).
 ```
 
 The agent will:
-1. **Confirm output format** - If format provided, show it and ask to confirm; if not, ask user to choose
-2. Interview for aesthetic preferences (visual mood, typography style)
-3. Ask about existing brand colors or generate palette
-4. **Create color palette preview** at `./.design-sprint-staging/color-palette-preview.html`
-5. Ask user to confirm colors (open preview in browser)
-6. Output final JSON design spec
+1. Read spec.json
+2. Call gemini-generate.py
+3. Write code to `./.design-sprint-staging/round-N/code/`
+4. Return summary: `{success, lines, file_size, errors}`
 
-**Write spec to**: `./.design-sprint-staging/round-1/spec.json`
+**Important**: Generated code stays in sub-agent context (saves ~35KB+ per round)
 
-### Phase 2: Code Generation
+### Phase 3: Code Review (Sub-agent - Non-interactive)
 
-Call Gemini API with the design spec:
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/gemini-generate.py
-```
-
-**Write generated code to staging**:
-- HTML format: `./.design-sprint-staging/round-N/code/index.html`
-- React format: `./.design-sprint-staging/round-N/code/*.jsx` + `*.css`
-- Other formats: appropriate file structure
-
-### Phase 3: Code Review
-
-Launch **opus-reviewer** agent with the staging directory:
+Launch **opus-reviewer** agent via Task:
 
 ```
 Review the generated code in the staging directory.
 
-Design spec: ./.design-sprint-staging/round-N/spec.json
-Generated code: ./.design-sprint-staging/round-N/code/
+Staging dir: ./.design-sprint-staging/round-N/
+- spec.json: design specification
+- code/: generated code files
 
-Read the files and evaluate against the design specification.
+Read files and evaluate against the design specification.
+Return review JSON with scores and issues.
 ```
 
 The reviewer will:
-1. Read spec.json
-2. Read all code files in the code/ directory
-3. Evaluate against spec
-4. Output review JSON
+1. Read spec.json and all code files
+2. Evaluate against design principles (uses design-orchestration skill)
+3. Score across 4 dimensions (fidelity, quality, accessibility, completeness)
+4. Return review JSON with overall score and issues
 
-**Write review to**: `./.design-sprint-staging/round-N/review.json`
+**Pass threshold**: 7.0 (or 8.0 with --strict)
 
-### Phase 4: Adaptation (if not passed)
+### Phase 4: Iteration Planning (Interactive)
 
-If score < threshold AND rounds remain:
+If user chooses to iterate (regardless of pass/fail):
 
-Launch **adaptation-advisor** agent with:
+**Step 4a: Get Recommendations (Sub-agent)**
+
+Launch **adaptation-advisor** agent via Task:
+
 ```
-Review the iteration at: ./.design-sprint-staging/round-N/
-- spec.json: design specification
-- code/: generated code
-- review.json: review results
+Analyze the review and prepare iteration guidance.
 
-Prepare guidance for round N+1.
+Review path: ./.design-sprint-staging/round-N/review.json
+Spec path: ./.design-sprint-staging/round-N/spec.json
+
+Prioritize issues and create Gemini iteration prompt.
+Identify elements to PRESERVE.
 ```
 
-Agent outputs iteration prompt. Return to Phase 2 for next round.
+**Step 4b: Present to User (Main Claude - Interactive)**
+
+Show the user a summary of recommended changes:
+
+```
+## Iteration Plan for Round [N+1]
+
+Based on the review (score: X/10), here are the recommended fixes:
+
+### Priority Fixes
+1. [MAJOR] Issue description - Recommended fix
+2. [MINOR] Issue description - Recommended fix
+3. [MINOR] Issue description - Recommended fix
+
+### What Will Be Preserved
+- List of elements that are working well
+- These will NOT be changed
+
+Would you like to:
+- Proceed with these fixes
+- Add your own feedback
+- Skip certain fixes
+- Focus on specific issues only
+```
+
+Use **AskUserQuestion** to let user:
+1. **Approve** - Proceed with recommended fixes
+2. **Modify** - Add comments or change priorities
+3. **Focus** - Pick specific issues to address
+
+If user provides feedback, incorporate it into the iteration spec before proceeding.
+
+**Step 4c: Generate Next Round**
+
+Create spec for round N+1 incorporating:
+- Adaptation advisor recommendations
+- User's additional feedback (if any)
+- Clear PRESERVE list
+
+**Return to Phase 2** with the updated spec.
 
 ### Phase 5: Output
 

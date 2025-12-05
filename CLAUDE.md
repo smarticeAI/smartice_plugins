@@ -6,11 +6,12 @@ This repository contains Claude Code plugins for the SmartIce marketplace.
 
 ```
 plugins/
-├── design-council/          # Multi-model frontend design workflow
+├── design-council/          # Multi-model frontend design workflow (v2)
 │   ├── agents/
-│   │   ├── design-strategist.md   # Creates design specs, interviews user
+│   │   ├── gemini-generator.md    # Generates code via Gemini API (returns summary only)
 │   │   ├── opus-reviewer.md       # Reviews generated code for quality
-│   │   └── adaptation-advisor.md  # Prepares guidance for failed iterations
+│   │   ├── adaptation-advisor.md  # Prepares guidance for failed iterations
+│   │   └── design-strategist.md.bak  # Archived - Main Claude now handles this role
 │   ├── commands/
 │   │   └── design-sprint.md       # Main orchestration command
 │   └── skills/
@@ -21,11 +22,16 @@ plugins/
 
 ## Design-Council Plugin
 
-### Workflow
+### Workflow (v2)
 
 1. **Design Sprint Command**: `/design-council:design-sprint "description" --rounds=3 --format=react`
-2. **Staging Directory**: All generated code goes to `./.design-sprint-staging/round-N/`
-3. **Color Palette Preview**: Designer creates `color-palette-preview.html` for user confirmation
+2. **Main Claude Interview**: Gathers preferences via AskUserQuestion (aesthetic, colors, audience)
+3. **Option Generation**: Creates 4 palette options + 4 typography options with preview HTML
+4. **User Selection**: User selects or mixes options
+5. **Code Generation**: gemini-generator agent writes code to staging, returns summary only
+6. **Review**: opus-reviewer agent evaluates code quality (pass threshold: 7.0)
+7. **Iteration**: If failed, adaptation-advisor prepares feedback for next round
+8. **Staging Directory**: All generated code goes to `./.design-sprint-staging/round-N/`
 
 ### Output Formats
 
@@ -51,11 +57,25 @@ Then restart Claude Code to pick up changes.
 - `plugins/design-council/scripts/gemini-generate.py` - Calls Gemini API for code generation
 - Requires `GEMINI_API_KEY` environment variable
 
+## Architecture (v2)
+
+**Key Insight**: Sub-agents cannot use AskUserQuestion - they run to completion and return a single result.
+
+| Role | Handler | Interactive? |
+|------|---------|--------------|
+| Strategist/Orchestrator | Main Claude | Yes |
+| Code Generator | gemini-generator agent | No |
+| Code Reviewer | opus-reviewer agent | No |
+| Adaptation Advisor | adaptation-advisor agent | No |
+
+**Context Efficiency**: The gemini-generator agent keeps 35KB+ of generated code out of main context by writing to staging and returning only a summary.
+
 ## Development Notes
 
-- Agent namespaces: Use full names like `design-council:design-strategist`
+- Agent namespaces: Use full names like `design-council:gemini-generator`
 - Staging directory pattern ensures reviewer reads fresh files, not cached content
-- Color palette preview lets users confirm colors before expensive code generation
+- **Multi-option preview**: 4 AI-generated palette/typography options with project-specific mockups (palette-generator.py, typography-generator.py, preview-generator.py)
+- **Sub-agents are non-interactive**: Only Main Claude uses AskUserQuestion for user input
 
 ## Weather Dashboard Example
 
