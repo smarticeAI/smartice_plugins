@@ -37,6 +37,14 @@
       "version": "1.0.0",
       "category": "productivity",
       "keywords": ["database", "supabase", "postgresql", "review"]
+    },
+    {
+      "name": "crawler-workflow",
+      "source": "./plugins/crawler-workflow",
+      "description": "Interactive crawler development workflow using Chrome DevTools MCP. Explore sites with user, document paths, build and test crawlers.",
+      "version": "1.0.0",
+      "category": "automation",
+      "keywords": ["crawler", "scraping", "playwright", "devtools", "automation"]
     }
   ]
 }
