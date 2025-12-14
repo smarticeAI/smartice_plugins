@@ -1,9 +1,19 @@
 {
   "name": "crawler-workflow",
   "description": "Interactive crawler development workflow using Chrome DevTools MCP. Explore sites with user, document paths, build and test crawlers.",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Jeremy Dong"
   },
-  "keywords": ["crawler", "scraping", "playwright", "devtools", "automation"]
+  "keywords": ["crawler", "scraping", "playwright", "devtools", "automation"],
+  "dependencies": {
+    "mcp": ["chrome-devtools"]
+  },
+  "commands": {
+    "crawl": "Full workflow: explore → build → test"
+  },
+  "agents": {
+    "crawler-builder": "Generate crawler code from crawl-path.md",
+    "crawler-tester": "Test crawler and validate output"
+  }
 }

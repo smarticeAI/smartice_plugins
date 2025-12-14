@@ -222,8 +222,8 @@ Before building, confirm with user:
 3. Launch builder agent:
 
 ```
-Use Task tool with subagent_type="crawler-builder" and prompt:
-"Build a crawler based on crawl-path.md.
+Use Task tool with subagent_type="crawler-workflow:crawler-builder" and prompt:
+"Build a crawler based on crawl-path.md in [current directory].
 Language: [Python/JS].
 Output file: [filename].
 Use the locators in priority order from crawl-path.md.
@@ -240,7 +240,7 @@ Prefer get_by_role() and get_by_text() over CSS selectors."
 3. Launch tester agent:
 
 ```
-Use Task tool with subagent_type="crawler-tester" and prompt:
+Use Task tool with subagent_type="crawler-workflow:crawler-tester" and prompt:
 "Test the crawler at [crawler file path].
 Expected output format is in crawl-path.md.
 Run and validate results.
