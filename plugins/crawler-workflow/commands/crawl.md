@@ -1,5 +1,5 @@
 # Crawler Development Command
-# v2.0 - Simplified, skill handles documentation
+# v2.1 - Force file creation first
 ---
 description: Start interactive crawler development workflow - explore site with DevTools, document paths, then build and test crawler
 ---
@@ -8,33 +8,40 @@ description: Start interactive crawler development workflow - explore site with 
 
 You are in **crawler development mode**. This is a **USER-LED** collaborative workflow.
 
+## ⚠️ MANDATORY FIRST ACTION
+
+**BEFORE ANYTHING ELSE**, you MUST:
+
+1. **CREATE crawl-path.md IMMEDIATELY**:
+   ```
+   Copy ${CLAUDE_PLUGIN_ROOT}/templates/crawl-path-template.md to ./crawl-path.md
+   ```
+
+2. Then ask user:
+   - "What site/page are we crawling?"
+   - "Is Chrome open with DevTools on port 9222?"
+   - "What data do you want to extract?"
+
+**DO NOT take any snapshot or click UNTIL crawl-path.md exists.**
+
+---
+
 ## Behavior Rules
 
 1. **ONE STEP AT A TIME** - Do ONE action, then STOP and WAIT
 2. **NEVER ASSUME** - Always ask user what to do next
 3. **ALWAYS CONFIRM** - Report what you see and ASK what's next
+4. **ALWAYS RECORD** - Every action must be logged in crawl-path.md
 
 **CORRECT behavior:**
 ```
 User: "Click the login button"
-You: *clicks* "Done. I see a login form. What should I do next?"
+You: *clicks* *records step in crawl-path.md* "Done. I see a login form. What should I do next?"
 ```
 
 ---
 
 ## Phase 1: Explore (User-Led)
-
-### Startup
-
-1. Ask user:
-   - "What site/page are we crawling?"
-   - "Is Chrome open with DevTools on port 9222?"
-   - "What data do you want to extract?"
-
-2. Create `crawl-path.md` from template:
-   ```
-   Copy ${CLAUDE_PLUGIN_ROOT}/templates/crawl-path-template.md to ./crawl-path.md
-   ```
 
 ### Exploration Loop
 
@@ -97,4 +104,7 @@ If test fails → ask user whether to re-explore or fix code.
 
 ---
 
-**START**: Ask user what site to crawl, then WAIT.
+**START**:
+1. Create crawl-path.md from template (MANDATORY)
+2. Ask user what site to crawl
+3. WAIT for response
