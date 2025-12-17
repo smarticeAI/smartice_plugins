@@ -1,5 +1,5 @@
 # Crawl Path: [Site Name]
-# v1.2 - Added Loops & Termination section
+# v1.3 - References moved to skill
 
 > Generated during exploratory phase
 > Date: [YYYY-MM-DD]
@@ -16,7 +16,7 @@
 ### Step 1: [Action Name]
 - **Action**: navigate / click / fill / wait / hover
 - **Target**: [description of element in user-visible terms]
-- **Locators** (by priority - see references/playwright-locators.md):
+- **Locators** (by priority - see skill docs):
   1. `page.get_by_role(...)` or `page.get_by_text(...)`
   2. `page.locator("css selector")`
   3. `page.locator("xpath")` (if needed)
@@ -38,7 +38,7 @@
 
 ## Loops & Termination
 
-> IMPORTANT: Document ALL iteration patterns here. See references/loop-patterns.md for guidance.
+> IMPORTANT: Document ALL iteration patterns here. See skill docs for guidance.
 
 ### Loop 1: [Name, e.g., "Store Selection" / "Pagination" / "Date Range"]
 
@@ -213,7 +213,7 @@ When recording locators, prefer in this order:
 4. **Attribute-based**: `locator("[attr='value']")` - for unique attributes
 5. **CSS/XPath**: Last resort - avoid long chains
 
-See `references/playwright-locators.md` for detailed guidance.
+See skill documentation for detailed guidance.
 
 ---
 

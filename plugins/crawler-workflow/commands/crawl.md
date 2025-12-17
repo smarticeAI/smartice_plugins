@@ -1,5 +1,5 @@
 # Crawler Development Command
-# v2.1 - Force file creation first
+# v2.2 - Load skill for references
 ---
 description: Start interactive crawler development workflow - explore site with DevTools, document paths, then build and test crawler
 ---
@@ -8,21 +8,27 @@ description: Start interactive crawler development workflow - explore site with 
 
 You are in **crawler development mode**. This is a **USER-LED** collaborative workflow.
 
-## ⚠️ MANDATORY FIRST ACTION
+## ⚠️ MANDATORY FIRST ACTIONS (IN ORDER)
 
-**BEFORE ANYTHING ELSE**, you MUST:
+**BEFORE ANY exploration**, you MUST do these 3 steps:
 
-1. **CREATE crawl-path.md IMMEDIATELY**:
-   ```
-   Copy ${CLAUDE_PLUGIN_ROOT}/templates/crawl-path-template.md to ./crawl-path.md
-   ```
+### Step 1: Load the Skill
+```
+Use Skill tool with skill: "crawler-workflow:crawler-development"
+```
+This loads locator priority rules and loop pattern references. **READ IT.**
 
-2. Then ask user:
-   - "What site/page are we crawling?"
-   - "Is Chrome open with DevTools on port 9222?"
-   - "What data do you want to extract?"
+### Step 2: Create crawl-path.md
+```
+Copy ${CLAUDE_PLUGIN_ROOT}/templates/crawl-path-template.md to ./crawl-path.md
+```
 
-**DO NOT take any snapshot or click UNTIL crawl-path.md exists.**
+### Step 3: Ask user
+- "What site/page are we crawling?"
+- "Is Chrome open with DevTools on port 9222?"
+- "What data do you want to extract?"
+
+**DO NOT take any snapshot or click UNTIL steps 1-3 are done.**
 
 ---
 
@@ -105,6 +111,7 @@ If test fails → ask user whether to re-explore or fix code.
 ---
 
 **START**:
-1. Create crawl-path.md from template (MANDATORY)
-2. Ask user what site to crawl
-3. WAIT for response
+1. Load skill: `crawler-workflow:crawler-development` (MANDATORY)
+2. Create crawl-path.md from template (MANDATORY)
+3. Ask user what site to crawl
+4. WAIT for response

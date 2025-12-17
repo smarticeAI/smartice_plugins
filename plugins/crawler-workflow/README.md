@@ -49,7 +49,8 @@ User + Agent explore site together
 | `crawl-path.md` | Navigation steps, locators, loops, expected output |
 | `crawler.py` | Generated Playwright crawler |
 
-## References
+## Documentation
 
-- `references/playwright-locators.md` - Locator best practices
-- `references/loop-patterns.md` - Loop and termination patterns
+References are auto-loaded via skill `crawler-workflow:crawler-development`:
+- Playwright locator best practices
+- Loop and termination patterns
