@@ -1,117 +1,106 @@
 # Crawler Development Command
-# v2.2 - Load skill for references
+# v3.0 - Use TodoWrite to enforce workflow
 ---
 description: Start interactive crawler development workflow - explore site with DevTools, document paths, then build and test crawler
 ---
 
 # Crawler Development Workflow
 
-You are in **crawler development mode**. This is a **USER-LED** collaborative workflow.
+**FIRST ACTION**: Use TodoWrite to create this task list:
 
-## ⚠️ MANDATORY FIRST ACTIONS (IN ORDER)
-
-**BEFORE ANY exploration**, you MUST do these 3 steps:
-
-### Step 1: Load the Skill
 ```
-Use Skill tool with skill: "crawler-workflow:crawler-development"
+TodoWrite with todos:
+1. "Load skill crawler-workflow:crawler-development" (in_progress)
+2. "Create crawl-path.md from template" (pending)
+3. "Ask user: site, CDP ready, data to extract" (pending)
+4. "Explore site with user (record steps)" (pending)
+5. "Launch crawler-builder agent" (pending)
+6. "Launch crawler-tester agent" (pending)
 ```
-This loads locator priority rules and loop pattern references. **READ IT.**
 
-### Step 2: Create crawl-path.md
+Then execute each todo in order. Mark as completed when done.
+
+---
+
+## Todo 1: Load Skill
+
+```
+Use Skill tool: "crawler-workflow:crawler-development"
+```
+
+This loads locator priority and loop patterns. **Read it.**
+
+---
+
+## Todo 2: Create crawl-path.md
+
 ```
 Copy ${CLAUDE_PLUGIN_ROOT}/templates/crawl-path-template.md to ./crawl-path.md
 ```
 
-### Step 3: Ask user
+---
+
+## Todo 3: Ask User
+
 - "What site/page are we crawling?"
 - "Is Chrome open with DevTools on port 9222?"
 - "What data do you want to extract?"
 
-**DO NOT take any snapshot or click UNTIL steps 1-3 are done.**
-
 ---
 
-## Behavior Rules
+## Todo 4: Explore (User-Led)
 
-1. **ONE STEP AT A TIME** - Do ONE action, then STOP and WAIT
-2. **NEVER ASSUME** - Always ask user what to do next
-3. **ALWAYS CONFIRM** - Report what you see and ASK what's next
-4. **ALWAYS RECORD** - Every action must be logged in crawl-path.md
+**Behavior Rules:**
+- ONE action at a time, then WAIT
+- Record every step in crawl-path.md
+- When you see pagination/dropdown/tabs → ask about loops
 
-**CORRECT behavior:**
-```
-User: "Click the login button"
-You: *clicks* *records step in crawl-path.md* "Done. I see a login form. What should I do next?"
-```
-
----
-
-## Phase 1: Explore (User-Led)
-
-### Exploration Loop
-
-For EVERY step:
+**Loop:**
 1. User tells you what to do
-2. Do EXACTLY that ONE thing
-3. Report what you see
-4. Record in crawl-path.md (use skill's locator priority)
-5. Ask: "What should I do next?"
-6. WAIT
+2. Do that ONE thing
+3. Record in crawl-path.md
+4. Ask: "What next?"
+5. WAIT
 
-### Loop Detection
-
-When you see dropdown/pagination/tabs/date picker, **STOP and ASK**:
-
-- "I see [multiple options]. Do you need to iterate through ALL, or just one?"
-- "How do I know when to STOP?"
-
-Record loops in crawl-path.md with termination conditions.
+When user says "exploration done" → mark todo 4 complete, start todo 5.
 
 ---
 
-## Phase 2: Build
+## Todo 5: Build
 
-Only after user confirms exploration is complete:
+Ask: "Python or JavaScript?"
 
-1. Ask: "Python/Playwright or JavaScript?"
-2. Launch builder agent:
-
+Then launch agent:
 ```
-Task tool → subagent_type="crawler-workflow:crawler-builder"
-prompt: "Build crawler from ./crawl-path.md. Language: [X]. Use locator priority from skill."
+Task tool
+  subagent_type: "crawler-workflow:crawler-builder"
+  prompt: "Build crawler from ./crawl-path.md. Language: [user choice]."
 ```
 
 ---
 
-## Phase 3: Test
+## Todo 6: Test
 
-After build completes:
+Ask: "Want me to test it?"
 
-1. Ask: "Want me to test it?"
-2. Launch tester agent:
-
+Then launch agent:
 ```
-Task tool → subagent_type="crawler-workflow:crawler-tester"
-prompt: "Test crawler at [path]. Validate against crawl-path.md expected output."
+Task tool
+  subagent_type: "crawler-workflow:crawler-tester"
+  prompt: "Test crawler at [path]. Validate output format."
 ```
 
-If test fails → ask user whether to re-explore or fix code.
+If failed → ask user: re-explore or fix code?
 
 ---
 
 ## DevTools MCP Tools
 
-- `mcp__chrome-devtools__navigate_page` - Go to URL
-- `mcp__chrome-devtools__take_snapshot` - See page structure
-- `mcp__chrome-devtools__click` - Click element
+- `mcp__chrome-devtools__take_snapshot` - See page
+- `mcp__chrome-devtools__click` - Click
 - `mcp__chrome-devtools__fill` - Fill input
-- `mcp__chrome-devtools__wait_for` - Wait for element
+- `mcp__chrome-devtools__wait_for` - Wait
 
 ---
 
-**START**:
-1. Load skill: `crawler-workflow:crawler-development` (MANDATORY)
-2. Create crawl-path.md from template (MANDATORY)
-3. Ask user what site to crawl
-4. WAIT for response
+**START NOW**: Create the todo list above, then begin todo 1.
