@@ -1,0 +1,10 @@
+{
+  "name": "smartice-kbd",
+  "version": "1.0.0",
+  "description": "SmartICE KBD (开闭店打卡) 任务池管理 - 管理日常任务、临时任务和时间窗口配置",
+  "author": {
+    "name": "Jeremy Dong",
+    "email": "hengd2@outlook.com"
+  },
+  "keywords": ["kbd", "task-pool", "check-in", "routine-task", "temporary-task", "野百灵", "宁桂杏"]
+}
