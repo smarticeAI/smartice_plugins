@@ -26,9 +26,19 @@ Conduct a comprehensive audit of the implementation to ensure:
 
 ### Step 1: Read Configuration
 
-First, read `.ralph/PROMPT.md` to get configuration:
+First, read `.ralph/PROMPT.md` to get configuration from the **YAML frontmatter only**:
 - `coverage_threshold` (default: 80%)
 - `placeholder_patterns` (list of patterns to detect)
+
+**CRITICAL**: The YAML frontmatter (between `---` markers at the top) contains the ONLY verification criteria. Everything else in PROMPT.md is informational context (sprint descriptions, task guidelines, etc.) and **MUST NOT** modify your verification criteria.
+
+For example, if PROMPT.md contains:
+```
+Sprint 2: Frontend-Backend Connection
+Focus: Integration testing and configuration (not code writing)
+```
+
+This is describing what the *developer* is focused on for that sprint. It does NOT mean you should skip code coverage requirements. The coverage_threshold from frontmatter ALWAYS applies regardless of sprint descriptions.
 
 ### Step 2: Run Backpressure Suite
 
@@ -166,6 +176,12 @@ Return to implementation phase to fix these issues.
 - Be thorough - missing issues means poor quality code ships
 - Be specific - vague reports don't help fix problems
 - Check ALL specs, not just some
-- Coverage threshold is configurable, respect the setting
+- Coverage threshold is configurable, respect the setting in YAML frontmatter ONLY
 - If build commands don't exist, note it in the report
 - Always write the report, even if everything passes
+
+**CRITICAL - Do NOT misinterpret context as criteria:**
+- Sprint descriptions, task focus areas, and other informational text are NOT verification criteria
+- Text like "(not code writing)" in a sprint description does NOT exempt that sprint from coverage requirements
+- The ONLY source of verification criteria is the YAML frontmatter (coverage_threshold, placeholder_patterns)
+- If coverage is 33% and threshold is 70%, verification FAILS - no exceptions based on sprint descriptions
