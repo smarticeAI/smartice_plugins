@@ -12,13 +12,19 @@ dev-ralph provides an autonomous development loop for greenfield projects:
 
 ## Installation
 
-Copy to your Claude Code plugins directory:
+Install via SmartIce marketplace:
 
 ```bash
-cp -r dev-ralph ~/.claude/plugins/marketplaces/smartice-plugin-market/plugins/
+claude /install smartice_plugins
 ```
 
-Or use with `--plugin-dir`:
+Or copy manually:
+
+```bash
+cp -r dev-ralph ~/.claude/plugins/marketplaces/smartice_plugins/plugins/
+```
+
+Or use with `--plugin-dir` for testing:
 
 ```bash
 claude --plugin-dir /path/to/dev-ralph
@@ -122,6 +128,22 @@ placeholder_patterns:
 └── stdlib/                # Code patterns
     └── *.md
 ```
+
+### Recommended .gitignore
+
+Add to your project's `.gitignore` to exclude transient state:
+
+```gitignore
+# dev-ralph transient files
+.ralph/loop-state.json
+.ralph/verification-report.md
+```
+
+Keep these tracked for planning continuity:
+- `.ralph/PROMPT.md`
+- `.ralph/IMPLEMENTATION_PLAN.md`
+- `.ralph/specs/*.md`
+- `.ralph/stdlib/*.md`
 
 ## Philosophy
 

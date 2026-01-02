@@ -75,9 +75,9 @@ dev-ralph/
 
 ## Testing Changes
 
-After modifying plugin files:
+After modifying plugin files, sync to installed location:
 ```bash
-cp -r . ~/.claude/plugins/marketplaces/smartice-plugin-market/plugins/dev-ralph/
+cp -r . ~/.claude/plugins/marketplaces/smartice_plugins/plugins/dev-ralph/
 ```
 
 Then restart Claude Code to pick up changes.
