@@ -61,6 +61,14 @@
       "version": "1.0.0",
       "category": "database",
       "keywords": ["kbd", "task-pool", "check-in", "routine-task", "temporary-task", "野百灵", "宁桂杏"]
+    },
+    {
+      "name": "dev-ralph",
+      "source": "./plugins/dev-ralph",
+      "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, and quality gates for greenfield projects",
+      "version": "1.0.0",
+      "category": "development",
+      "keywords": ["ralph-wiggum", "automation", "development-loop", "planning", "verification"]
     }
   ]
 }

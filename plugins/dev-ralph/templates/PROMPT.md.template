@@ -1,0 +1,81 @@
+---
+# dev-ralph Configuration
+# Customize these values based on your project
+
+iteration_limit: 500      # Maximum iterations before auto-stop
+retry_limit: 5            # Retries before asking developer for help
+coverage_threshold: 80    # Test coverage percentage required
+verbosity: normal         # minimal | normal | verbose
+
+# Anti-cheat patterns (verification will grep for these)
+placeholder_patterns:
+  - "TODO"
+  - "FIXME"
+  - "unimplemented"
+  - "NotImplementedError"
+  - "throw new Error('Not implemented')"
+---
+
+# PROMPT.md
+
+This file is fed to Claude at the start of each iteration.
+
+## Context Loading
+
+Before starting work, study:
+
+0a. Study `specs/*` to learn about requirements
+0b. Study `IMPLEMENTATION_PLAN.md` for current priorities
+0c. Study `stdlib/*` for code patterns to follow
+0d. The source code is in `src/`
+
+## Your Task
+
+Pick the most important unfinished item from IMPLEMENTATION_PLAN.md and implement it.
+
+Guidelines:
+- Use as many parallel subagents as needed for search/read operations
+- Use only 1 subagent for build/test operations
+- Mark completed items in IMPLEMENTATION_PLAN.md with `[x]`
+- Focus on one task per iteration
+
+## Backpressure
+
+After implementing, run the type checker:
+
+```bash
+bun run type-check
+```
+
+If errors occur, fix them before proceeding.
+
+## Completion Protocol
+
+When implementation is complete (type-check passes):
+
+1. Output: `<status>IMPLEMENTATION_COMPLETE</status>`
+2. This triggers the verification phase
+3. Run the verification-auditor agent
+4. If verification passes, output: `<promise>VERIFIED_COMPLETE</promise>`
+
+## Anti-Cheating Rules
+
+These are NON-NEGOTIABLE:
+
+99999999999999. DO NOT IMPLEMENT PLACEHOLDERS.
+99999999999998. NO TODO comments, no unimplemented stubs.
+99999999999997. FULL IMPLEMENTATIONS ONLY OR I WILL YELL AT YOU.
+
+If you cannot implement something:
+- Ask the developer for help (after retry limit)
+- Do NOT fake it with placeholder code
+- Do NOT use empty function bodies
+- Do NOT leave TODO comments
+
+## Error Recovery
+
+If stuck after multiple attempts:
+1. Document what you tried
+2. Document what went wrong
+3. Ask the developer for guidance
+4. Wait for response before continuing
