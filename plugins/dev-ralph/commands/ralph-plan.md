@@ -27,9 +27,11 @@ Interview me in detail using the AskUserQuestion tool about literally anything:
 - Performance requirements
 - Security considerations
 
-**Make sure the questions are not obvious.** Dig deep. Ask follow-up questions based on my answers. Continue interviewing until you have a complete understanding of what I want to build.
-
-Do not stop after a fixed number of questions. Keep asking until the spec is fully fleshed out.
+**Interview Guidelines:**
+- **Ask 4 questions at a time** using the AskUserQuestion tool's multi-question capability for efficient interviews
+- **Make sure the questions are not obvious.** Dig deep. Ask follow-up questions based on my answers.
+- Continue interviewing until you have a complete understanding of what I want to build.
+- Do not stop after a fixed number of questions. Keep asking until the spec is fully fleshed out.
 
 ## Step 3: Write Specs
 
