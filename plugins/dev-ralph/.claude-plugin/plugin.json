@@ -1,7 +1,7 @@
 {
   "name": "dev-ralph",
-  "version": "1.0.1",
-  "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, and quality gates for greenfield projects",
+  "version": "1.0.2",
+  "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, integration checking, actionable reports, and auto-pause on critical issues",
   "author": {
     "name": "HengWoo"
   },

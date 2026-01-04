@@ -1,0 +1,77 @@
+# stdlib Module: [Module Name]
+
+## Purpose
+
+[What problem does this module solve? Why is it needed as a shared utility?]
+
+## Interface
+
+### Functions
+
+```typescript
+/**
+ * [Brief description]
+ * @param paramName - [Description]
+ * @returns [Description]
+ */
+function functionName(param: Type): ReturnType
+```
+
+### Classes (if applicable)
+
+```typescript
+/**
+ * [Brief description]
+ */
+class ClassName {
+  /**
+   * [Method description]
+   */
+  method(): ReturnType
+}
+```
+
+### Types
+
+```typescript
+/**
+ * [Type description]
+ */
+type CustomType = {
+  field: FieldType
+}
+```
+
+## Usage Examples
+
+```typescript
+import { functionName, ClassName } from '../stdlib/[module-name]'
+
+// Example 1: Basic usage
+const result = functionName(input)
+
+// Example 2: With error handling
+const { ok, value, error } = functionName(input)
+if (!ok) {
+  console.error(error.message)
+}
+```
+
+## Patterns to Follow
+
+- [Pattern 1: e.g., "Always return Result type, never throw exceptions"]
+- [Pattern 2: e.g., "Use typed errors with error codes for categorization"]
+- [Pattern 3: e.g., "All async functions should handle timeouts"]
+
+## Dependencies
+
+- [Other stdlib modules this depends on, e.g., "stdlib/errors"]
+- [External packages needed, e.g., "zod for schema validation"]
+
+## Anti-Patterns (Do Not Do)
+
+- [Anti-pattern 1: e.g., "Don't throw raw Error objects"]
+- [Anti-pattern 2: e.g., "Don't use callbacks, use async/await"]
+
+---
+*Created during /ralph-plan - This spec defines what Ralph should build in src/stdlib/[module-name].ts*

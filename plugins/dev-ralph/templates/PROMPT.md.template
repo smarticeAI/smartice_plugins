@@ -14,6 +14,45 @@ placeholder_patterns:
   - "unimplemented"
   - "NotImplementedError"
   - "throw new Error('Not implemented')"
+
+# Build commands for this project
+# Set these to match your project's toolchain
+build_commands:
+  type_check: "bun run type-check"   # Type checking command (TypeScript, Flow, mypy, etc.)
+  lint: "bun run lint"               # Linting command (ESLint, Prettier, Ruff, etc.)
+  test: "bun run test"               # Test runner command
+  coverage: "bun run test:coverage"  # Test coverage command
+  # test_discovery: "bun run test --listTests"  # Optional: list test files for discovery verification
+
+# Integration patterns to verify (supports regex: prefix)
+# These patterns are grepped in entry points to verify new code is wired in
+integration_patterns:
+  # Literal strings (exact match)
+  # - "app.register"
+  # - "router.post"
+  # Regex patterns (prefix with "regex:")
+  # - "regex:@(app|router)\\.(get|post|put|delete)"
+
+# Entry points for integration verification
+# List files where new modules should be imported/registered
+# If empty, auto-detects based on project type (main.ts, app.py, etc.)
+entry_points:
+  # - "src/main.ts"
+  # - "src/app.py"
+
+# Categories excluded from integration checks
+# Files in these categories don't require explicit import/usage verification
+integration_exclusions:
+  categories:
+    # - utilities    # utils/, helpers/, lib/ directories
+    # - types        # types/, *.d.ts, typing.py, *_types.py
+    # - constants    # constants/, config/ directories
+
+# Integration strictness: strict | warn | lenient
+# - strict: Partial integration (import without usage) is a FAIL
+# - warn: Partial integration is a WARNING, verification passes
+# - lenient: Only check core integration (import exists), skip usage check
+integration_strictness: warn
 ---
 
 # PROMPT.md
@@ -24,19 +63,70 @@ This file is fed to Claude at the start of each iteration.
 
 Before starting work, study:
 
-0a. Study `specs/*` to learn about requirements
+0a. Study `specs/*` including `specs/stdlib/*` for requirements
 0b. Study `IMPLEMENTATION_PLAN.md` for current priorities
-0c. Study `stdlib/*` for code patterns to follow
-0d. The source code is in `src/`
+0c. The source code is in `src/`
+
+## Build Order
+
+**stdlib modules MUST be built BEFORE features.**
+
+1. **stdlib First**: If `specs/stdlib/*.md` exists:
+   - Build those modules first in `src/stdlib/`
+   - Write tests for stdlib modules
+   - Features will import from stdlib
+   - Do NOT proceed to features until stdlib is complete
+
+2. **Features Second**: After stdlib is complete:
+   - Implement features in priority order
+   - All features should use stdlib utilities
+   - Don't duplicate stdlib functionality in features
+
+3. **stdlib Updates**: If you discover a pattern that should be in stdlib:
+   - Add to `src/stdlib/` first
+   - Then use it in feature code
+   - This keeps the codebase DRY
 
 ## Your Task
 
 Pick the most important unfinished item from IMPLEMENTATION_PLAN.md and implement it.
 
-Guidelines:
-- Use as many parallel subagents as needed for search/read operations
-- Use only 1 subagent for build/test operations
+**One item per iteration.** Focus on completing one task fully before moving to the next.
+
+## Subagent Usage (Context Efficiency)
+
+Your context window is precious. Use subagents to avoid filling it with search output.
+
+### MUST Use Subagent (Task tool with subagent_type)
+- **Searching across >5 files** → `subagent_type=Explore`
+- **Finding all usages of a function** → `subagent_type=Explore`
+- **Understanding unfamiliar code area** → `subagent_type=Explore`
+
+### Direct Tools OK
+- Reading a specific known file → Read tool
+- Checking if a pattern exists in 1-2 files → Grep tool
+- Listing files in a directory → Glob tool
+
+### Example: Before Implementing Feature X
+
+**DON'T** (fills your context):
+```
+Use Grep to search all .ts files for similar patterns...
+[500 lines of output waste your context]
+```
+
+**DO** (preserves context):
+```
+Use Task tool with subagent_type=Explore:
+"Find all existing implementations similar to Feature X,
+ summarize patterns and locations"
+→ Returns: 5-line summary with file:line references
+```
+
+## Additional Guidelines
+
 - Mark completed items in IMPLEMENTATION_PLAN.md with `[x]`
+- Use only 1 subagent for build/test operations (avoid parallel builds)
 - Focus on one task per iteration
 
 ## Backpressure

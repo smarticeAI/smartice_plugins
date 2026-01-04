@@ -16,6 +16,44 @@
 - [ ] [Criterion 2]
 - [ ] [Criterion 3]
 
+## Verification Checklist
+
+Define success before implementation. These bash commands should return 0 when the feature is properly integrated.
+
+```bash
+# File existence verification
+test -f src/services/new_service.ts
+
+# Import verification - check new module is imported in entry point
+grep -q "from.*new_service" src/main.ts
+
+# Registration verification - check new component is registered
+grep -q "app.register.*NewService" src/app.ts
+
+# Integration verification - check new code is wired into existing system
+grep -n "newFunction" src/index.ts | grep -q "."
+
+# Test file exists
+test -f src/services/__tests__/new_service.test.ts
+```
+
+**Common patterns by framework:**
+
+```bash
+# Node.js/Express - route registration
+grep -q "router\.\(get\|post\|put\|delete\)" src/routes/new_route.ts
+
+# Python/FastAPI - endpoint registration
+grep -q "@app\.\(get\|post\|put\|delete\)" src/app_fastapi.py
+
+# React - component export and usage
+grep -q "export.*NewComponent" src/components/NewComponent.tsx
+grep -q "<NewComponent" src/App.tsx
+
+# Go - handler registration
+grep -q "HandleFunc.*newHandler" cmd/server/main.go
+```
+
 ## Technical Notes
 
 [Any technical considerations, constraints, or implementation hints]
