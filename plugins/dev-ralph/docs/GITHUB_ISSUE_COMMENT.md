@@ -1,72 +1,82 @@
 # GitHub Issue Comment: Plugin-Defined Agents Tool Execution
 
-**For issue:** [#4462](https://github.com/anthropics/claude-code/issues/4462) or [#7032](https://github.com/anthropics/claude-code/issues/7032)
+**For issue:** [#4462](https://github.com/anthropics/claude-code/issues/4462)
 
 ---
 
-## Additional Finding: Plugin-Defined Agents vs Built-in Agents
+## Root Cause Found: Explicit `tools:` Field Causes Sandboxing
 
-I've done systematic testing and found that **plugin-defined agents** (agents defined in `.md` files in plugin directories) exhibit the sandboxing behavior, while **built-in agents** work correctly.
+After systematic testing, I found that **plugin-defined agents with an explicit `tools:` field** run in sandboxed mode where tool operations don't persist to the filesystem.
 
 ### Test Results
 
-| Agent Type | Source | `tools:` field | Bash/Write persists? |
-|------------|--------|----------------|---------------------|
-| `general-purpose` | Built-in | N/A | ✅ Yes |
-| `Explore` | Built-in | N/A | ✅ Yes |
-| `pr-review-toolkit:code-reviewer` | Plugin (claude-code-plugins) | **Not specified** | ✅ Yes |
-| `pr-review-toolkit:code-simplifier` | Plugin (claude-code-plugins) | **Not specified** | ✅ Yes |
-| `plugin-dev:plugin-validator` | Plugin (claude-plugins-official) | `["Read", "Grep", "Glob", "Bash"]` | ❌ No |
-| `plugin-dev:skill-reviewer` | Plugin (claude-plugins-official) | `["Read", "Grep", "Glob"]` | ❌ No |
-| Custom `verification-auditor` | Plugin (smartice-plugin-market) | YAML list with Bash | ❌ No |
+| Agent | `tools:` field | Bash/Write persists? |
+|-------|----------------|---------------------|
+| `pr-review-toolkit:code-reviewer` | **Not specified** | ✅ Yes |
+| `pr-review-toolkit:code-simplifier` | **Not specified** | ✅ Yes |
+| `plugin-dev:plugin-validator` | `["Read", "Grep", "Glob", "Bash"]` | ❌ No |
+| `plugin-dev:skill-reviewer` | `["Read", "Grep", "Glob"]` | ❌ No |
+| Custom `verification-auditor` | YAML list with Bash | ❌ No |
 
-### Key Observation
+### The Pattern
 
-**When the `tools:` field is explicitly specified in a plugin agent's YAML frontmatter, tools appear to run in a sandboxed/simulated mode** - the agent claims success but no filesystem changes occur.
+- **With explicit `tools:` field** → Tools run in sandboxed/simulated mode (claims success, nothing persists)
+- **Without `tools:` field** → Agent inherits all tools and they execute on real filesystem
 
-**When the `tools:` field is omitted**, the agent inherits all tools and they execute correctly on the real filesystem.
+### The Fix
 
-### Evidence
+**Remove the `tools:` field from the agent's YAML frontmatter:**
 
-1. `plugin-dev:plugin-validator` has `tools: ["Read", "Grep", "Glob", "Bash"]` - agent claims `echo "test" > file.txt` succeeded, but file doesn't exist
-2. `pr-review-toolkit:code-reviewer` has **no** `tools:` field - same command actually creates the file
-3. `design-council:opus-reviewer` has `tools: Read, Glob, Grep` (no Bash) - agent correctly says "I cannot execute bash commands"
+```yaml
+# BEFORE (broken - sandboxed):
+---
+name: my-agent
+model: sonnet
+tools:
+  - Read
+  - Bash
+  - Write
+color: cyan
+---
 
-### Hypothesis
-
-When you specify an explicit `tools:` field:
-- The tools are provided to the agent in a sandboxed/simulated execution context
-- Tool calls are processed but don't affect the real filesystem
-
-When you omit the `tools:` field:
-- The agent inherits all tools from the parent context
-- Tools execute in the real filesystem context
-
-### Workaround
-
-Use the built-in `general-purpose` agent instead of custom plugin agents for operations that need real filesystem access:
-
-```python
-Task(
-  subagent_type="general-purpose",  # Works
-  prompt="Your verification instructions here..."
-)
-
-# Instead of:
-Task(
-  subagent_type="my-plugin:my-agent",  # May be sandboxed
-  prompt="..."
-)
+# AFTER (working - real execution):
+---
+name: my-agent
+model: sonnet
+color: cyan
+---
 ```
 
-Or remove the `tools:` field from your plugin agent definition (untested - may require Claude Code restart to take effect).
+### Confirmed Working
+
+After removing the `tools:` field and restarting Claude Code:
+
+| Check | Before | After |
+|-------|--------|-------|
+| Bash execution | Sandboxed | ✅ Real |
+| File writes | Not persisted | ✅ Persisted |
+| Tool accuracy | Fabricated outputs | ✅ Accurate |
+
+Our verification-auditor agent now correctly:
+- Runs `pytest` and reports accurate test counts
+- Writes 120-line verification reports to disk
+- Detects placeholders with correct file:line locations
 
 ### Environment
 
-- Claude Code version: Latest as of 2026-01-05
-- Tested across multiple plugin marketplaces (claude-code-plugins, claude-plugins-official, smartice-plugin-market)
-- Affects both JSON array format (`tools: ["Read", "Bash"]`) and YAML list format
+- Claude Code: Latest as of 2026-01-05
+- Tested across multiple plugin marketplaces
+- Affects both JSON array and YAML list formats for `tools:`
 
----
+### Workaround
 
-This may be related to or the same root cause as #13605 (Custom plugin subagents cannot access MCP tools).
+If you need to restrict tools, use built-in `general-purpose` agent instead:
+
+```python
+Task(
+  subagent_type="general-purpose",
+  prompt="Your instructions here..."
+)
+```
+
+But ideally, just omit the `tools:` field entirely.
