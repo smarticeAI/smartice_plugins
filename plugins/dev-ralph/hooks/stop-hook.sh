@@ -119,6 +119,9 @@ NEW_STATE=""
 
 if [[ "$PHASE" == "implementation" ]]; then
   if [[ "$IMPL_COMPLETE" == "true" ]]; then
+    # Clear stale verification report before new verification
+    rm -f "$RALPH_DIR/verification-report.md"
+
     # Transition to verification phase
     NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" '
       .iteration = $iter |
@@ -151,23 +154,47 @@ elif [[ "$PHASE" == "verification" ]]; then
     .iteration = $iter |
     .phase = "implementation"
   ')
-  SYSTEM_MSG="🔄 dev-ralph: Returning to implementation (iteration $NEXT_ITERATION)
+
+  # Extract failure summary from report if it exists
+  FAILURE_SUMMARY=""
+  if [[ -f "$RALPH_DIR/verification-report.md" ]]; then
+    # Get the Issues Found or Summary section (first 8 lines)
+    FAILURE_SUMMARY=$(grep -A5 "## Issues Found\|## Summary\|Status:" "$RALPH_DIR/verification-report.md" 2>/dev/null | head -8 || echo "")
+  fi
+
+  if [[ -n "$FAILURE_SUMMARY" ]]; then
+    SYSTEM_MSG="🔄 dev-ralph: Returning to implementation (iteration $NEXT_ITERATION)
+
+Verification failed:
+$FAILURE_SUMMARY
+
+Fix these issues, then output <status>IMPLEMENTATION_COMPLETE</status> when ready."
+  else
+    SYSTEM_MSG="🔄 dev-ralph: Returning to implementation (iteration $NEXT_ITERATION)
 
 Verification failed. Check .ralph/verification-report.md for issues.
-Fix the problems, then output <status>IMPLEMENTATION_COMPLETE</status> when ready to verify again."
+Fix the problems, then output <status>IMPLEMENTATION_COMPLETE</status> when ready."
+  fi
 fi
 
 # Write updated state
 echo "$NEW_STATE" > "$STATE_FILE"
 
 # Output JSON to block exit and feed prompt back
+# - reason: Short status shown to user
+# - systemMessage: Full PROMPT.md + status for Claude
+FULL_CONTEXT="${PROMPT_TEXT}
+
+---
+${SYSTEM_MSG}"
+
 jq -n \
-  --arg prompt "$PROMPT_TEXT" \
-  --arg msg "$SYSTEM_MSG" \
+  --arg status "$SYSTEM_MSG" \
+  --arg context "$FULL_CONTEXT" \
   '{
     "decision": "block",
-    "reason": $prompt,
-    "systemMessage": $msg
+    "reason": $status,
+    "systemMessage": $context
   }'
 
 exit 0
