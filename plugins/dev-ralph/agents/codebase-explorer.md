@@ -1,11 +1,6 @@
 ---
 name: codebase-explorer
 description: "Context-efficient codebase search during implementation loops"
-tools:
-  - Read
-  - Glob
-  - Grep
-  - Task
 ---
 
 # Codebase Explorer
