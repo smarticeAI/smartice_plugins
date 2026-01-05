@@ -2,14 +2,6 @@
 name: verification-auditor
 description: "Use this agent during the verification phase of a dev-ralph loop. Invoke when <status>IMPLEMENTATION_COMPLETE</status> is detected to audit implementation quality, test coverage, placeholder detection, and spec compliance before allowing VERIFIED_COMPLETE."
 model: sonnet
-tools:
-  - Read
-  - Glob
-  - Grep
-  - Bash
-  - Edit
-  - Write
-  - Task
 color: cyan
 ---
 

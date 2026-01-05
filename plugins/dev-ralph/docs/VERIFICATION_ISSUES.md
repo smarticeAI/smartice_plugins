@@ -219,12 +219,115 @@ plugins/dev-ralph/
 
 ---
 
+## ROOT CAUSE IDENTIFIED (2026-01-05)
+
+### Discovery: Plugin-Defined Agents Don't Execute Real Tools
+
+Through systematic testing, we discovered that **plugin-defined agents** (agents defined in `.md` files in plugin directories) don't actually execute tools - they hallucinate the execution.
+
+**Evidence from testing:**
+
+| Agent Type | Bash Write | Write Tool | File on Disk? |
+|------------|------------|------------|---------------|
+| `general-purpose` (built-in) | ✅ Works | ✅ Works | ✅ Yes |
+| `dev-ralph:verification-auditor` (plugin) | Claims ✅ | Claims ✅ | ❌ No |
+| `dev-ralph:codebase-explorer` (plugin) | Claims ✅ | N/A | ❌ No |
+
+**Additional evidence:**
+- `codebase-explorer` claimed to run Bash commands even though Bash is NOT in its tool list
+- `verification-auditor` used wrong tool names (`write_file` vs `Write`, `bash` vs `Bash`)
+- Both agents fabricated content (wrong TODO text, wrong line numbers)
+
+### Why This Happens
+
+Built-in agents (`general-purpose`, `Explore`, `Plan`) run in a context where tools are properly bound and executed. Plugin-defined agents appear to run in a sandboxed/simulated mode where:
+- Tool calls are generated as text
+- Nothing is actually executed on the system
+- The agent may hallucinate success
+
+### Comparison with Other Ralph Implementations
+
+| System | Uses Plugin Agents? | Verification Approach |
+|--------|--------------------|-----------------------|
+| Official `ralph-wiggum` | No | Main Claude runs tests directly |
+| `ralph-orchestrator` | No | Python wrapper handles tool execution via ACP |
+| Our `dev-ralph` | Yes (broken) | Delegated to plugin agent (doesn't work) |
+
+---
+
+## FIX IMPLEMENTED (2026-01-05)
+
+### Solution: Remove `tools:` Field from Agent Definition
+
+The fix is simple: **remove the explicit `tools:` field** from the agent's YAML frontmatter.
+
+```yaml
+# BEFORE (broken - tools sandboxed):
+---
+name: verification-auditor
+model: sonnet
+tools:
+  - Read
+  - Glob
+  - Grep
+  - Bash
+  - Write
+color: cyan
+---
+
+# AFTER (working - tools inherited):
+---
+name: verification-auditor
+model: sonnet
+color: cyan
+---
+```
+
+When the `tools:` field is omitted, the agent inherits all tools from the parent context and they execute in real mode (not sandboxed).
+
+### Test Results After Fix
+
+After removing `tools:` field and restarting Claude Code:
+
+| Check | Before (with `tools:`) | After (no `tools:`) |
+|-------|------------------------|---------------------|
+| Bash execution | Sandboxed (claims success) | Real execution ✅ |
+| File writes | NOT persisted to disk | Persisted to disk ✅ |
+| Tool accuracy | Fabricated outputs | Accurate outputs ✅ |
+
+### Why This Works
+
+When `tools:` is explicitly specified:
+- Claude Code provides a restricted/sandboxed tool environment
+- Tool calls are simulated, not executed on the real filesystem
+
+When `tools:` is omitted:
+- Agent inherits all tools from parent context
+- Tools execute in the real filesystem context
+
+This appears to be a bug in Claude Code (see [Issue #4462](https://github.com/anthropics/claude-code/issues/4462)).
+
+---
+
+## Files Changed
+
+```
+plugins/dev-ralph/
+├── agents/
+│   └── verification-auditor.md  # Removed tools: field
+└── docs/
+    └── VERIFICATION_ISSUES.md   # This document
+```
+
+---
+
 ## Conclusion
 
-The verification system needs fundamental changes beyond prompt engineering. The agent either cannot or will not follow instructions to run actual tests. Consider:
+The verification system is now functional. The root cause was the explicit `tools:` field in the agent YAML frontmatter causing sandboxed execution. By removing this field, the agent now:
 
-1. Moving test execution to deterministic code (stop hook)
-2. Adding structural validation of reports
-3. Implementing cache auto-sync on plugin changes
+1. ✅ Runs actual test commands
+2. ✅ Reports accurate test counts
+3. ✅ Writes verification reports to disk
+4. ✅ Detects placeholders with correct file:line locations
 
-Until these issues are resolved, the two-phase completion system cannot be trusted.
+**Key Learning**: Never specify explicit `tools:` field in plugin agent definitions if you need real tool execution.
