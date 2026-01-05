@@ -65,10 +65,10 @@
     {
       "name": "dev-ralph",
       "source": "./plugins/dev-ralph",
-      "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, and quality gates for greenfield projects",
-      "version": "1.0.0",
+      "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, integration checking, actionable reports, and auto-pause on critical issues",
+      "version": "1.0.4",
       "category": "development",
-      "keywords": ["ralph-wiggum", "automation", "development-loop", "planning", "verification"]
+      "keywords": ["ralph-wiggum", "automation", "development-loop", "planning", "verification", "quality-gates"]
     }
   ]
 }
