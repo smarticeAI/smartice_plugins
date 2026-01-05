@@ -331,3 +331,32 @@ The verification system is now functional. The root cause was the explicit `tool
 4. ✅ Detects placeholders with correct file:line locations
 
 **Key Learning**: Never specify explicit `tools:` field in plugin agent definitions if you need real tool execution.
+
+---
+
+## ENHANCEMENT ADDED (2026-01-05)
+
+### Plan Auto-Update Functionality
+
+Per the original Ralph Wiggum philosophy and spec `05-plan-auto-update.md`, the verification-auditor now updates IMPLEMENTATION_PLAN.md when checks fail:
+
+1. **Uncheck failed items** with report references:
+   ```markdown
+   - [ ] Create XService <!-- See verification-report.md#fix-xservice -->
+   ```
+
+2. **Add discovered items** with `[FOUND]` prefix:
+   ```markdown
+   - [ ] [FOUND] Remove TODO comment from power function <!-- See verification-report.md#fix-placeholder -->
+   ```
+
+3. **Mark phases complete** when all items done:
+   ```markdown
+   ### Phase 1: Setup ✅ COMPLETED
+   ```
+
+4. **Auto-pause on deep issues** (missing dependencies, architectural gaps):
+   - Sets `"paused": true` in loop-state.json
+   - Developer must address and run `/ralph-build` to resume
+
+This enables the loop to continue automatically - the implementation phase reads the updated plan and knows exactly what to fix in the next iteration.

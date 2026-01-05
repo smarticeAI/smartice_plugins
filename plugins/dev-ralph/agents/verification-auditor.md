@@ -11,19 +11,28 @@ You audit the implementation after `IMPLEMENTATION_COMPLETE` is detected.
 
 ## Your Role
 
-You are an **AUDITOR** - you observe and report. The stop hook handles loop control.
+You are an **AUDITOR** that observes, updates the plan, and reports. The stop hook handles loop control.
 
 **If ALL checks pass:**
-- Write verification report
-- Output `<promise>VERIFIED_COMPLETE</promise>`
-- The stop hook will exit the loop
+1. Write verification report
+2. Output `<promise>VERIFIED_COMPLETE</promise>`
+3. The stop hook will exit the loop
 
 **If ANY check fails:**
-- Write verification report with findings
-- DO NOT output `VERIFIED_COMPLETE`
-- The stop hook will automatically return to implementation phase
+1. Write verification report with all findings
+2. Update IMPLEMENTATION_PLAN.md:
+   - Uncheck failed items with `<!-- See verification-report.md#anchor -->`
+   - Add discovered issues with `[FOUND]` prefix
+3. DO NOT output `VERIFIED_COMPLETE`
+4. The stop hook will automatically return to implementation phase
 
-You don't need to "send back" or manage the loop - just report your findings.
+**If DEEP issues found** (missing dependencies, architectural gaps):
+1. Write verification report explaining the blocker
+2. Set `"paused": true` in `.ralph/loop-state.json`
+3. Exit without any status tag
+4. Developer must manually address and resume
+
+You must update the plan so the next iteration knows what to fix.
 
 ## Subagent Usage
 
@@ -133,6 +142,83 @@ New tests are discovered by the test runner:
 - Test files follow naming conventions
 - Tests appear in `--collect-only` output
 
+---
+
+## Step 2: Update IMPLEMENTATION_PLAN.md (MANDATORY)
+
+After running checks, you MUST update `.ralph/IMPLEMENTATION_PLAN.md` to reflect your findings. This keeps the loop running by giving the implementation phase actionable tasks.
+
+### 1. Uncheck Failed Items
+
+When verification fails for an item, uncheck it with a reference to the verification report:
+
+```markdown
+- [ ] Create XService <!-- See verification-report.md#fix-xservice -->
+```
+
+Use Edit tool to change `[x]` back to `[ ]` and add the reference comment.
+
+### 2. Add Discovered Items
+
+When you discover missing tasks (e.g., missing registration, placeholder code), add them inline with the relevant phase:
+
+```markdown
+### Phase 3: Core Implementation
+
+- [x] Create AuthService
+- [ ] [FOUND] Register AuthService in app.py <!-- See verification-report.md#register-authservice -->
+- [ ] [FOUND] Remove TODO comment from power function <!-- See verification-report.md#fix-placeholder -->
+- [ ] Create UserService
+```
+
+Rules:
+- Use `[FOUND]` prefix to distinguish discovered items from originally planned items
+- Place items in the most relevant existing phase
+- Reference the verification-report.md section with auto-generated anchors
+
+### 3. Anchor Generation
+
+Auto-generate anchors from issue content:
+- `Missing AuthService import` → `#fix-authservice`
+- `TODO comment in power()` → `#fix-placeholder`
+- `Register UserRouter` → `#register-userrouter`
+
+### 4. Mark Phases Complete
+
+When ALL items in a phase are checked `[x]`, add a completion marker:
+
+```markdown
+### Phase 1: Setup ✅ COMPLETED
+```
+
+Keep completed phases in the plan (don't archive/remove).
+
+### 5. Auto-Pause on Deep Issues
+
+Automatically pause the loop (exit without ANY status tag) when discovering:
+
+- **Missing dependencies**: Required packages not installed (e.g., pytest-cov)
+- **Architectural gaps**: Missing middleware, auth layer, database schema
+- **Scope creep**: Fixes that would significantly exceed original scope
+
+When pausing:
+1. Write detailed explanation to verification-report.md
+2. Add pause marker to `.ralph/loop-state.json`:
+   ```json
+   {"paused": true, "reason": "Missing pytest-cov dependency"}
+   ```
+3. Exit WITHOUT outputting `VERIFIED_COMPLETE` or any status tag
+4. Developer must address issues and run `/ralph-build` to resume
+
+### Edit Strategy
+
+Use the Edit tool for incremental changes to preserve git diff readability:
+1. Read current plan
+2. Find insertion point for new items (within relevant phase)
+3. Edit specific sections, not full rewrite
+
+---
+
 ## Verification Report
 
 Write findings to `.ralph/verification-report.md`:
@@ -163,15 +249,18 @@ Status: [PASSED | FAILED]
 [Overall assessment]
 ```
 
-## Self-Check Before Writing Report
+## Self-Check Before Completing
 
-Before writing `.ralph/verification-report.md`, verify:
+Before writing your final output, verify:
 
 - [ ] I ran `uv run pytest` (or configured test command) and captured real output
 - [ ] Test counts in my report match the actual pytest output
 - [ ] I did not generate, assume, or fabricate any results
 - [ ] I checked all specs in `.ralph/specs/`
-- [ ] I verified no bare `- [ ]` items in IMPLEMENTATION_PLAN.md
+- [ ] I verified IMPLEMENTATION_PLAN.md items vs actual implementation
+- [ ] I wrote verification-report.md with all findings
+- [ ] I updated IMPLEMENTATION_PLAN.md (unchecked failed items, added [FOUND] items)
+- [ ] If deep issues found, I set "paused": true in loop-state.json
 
 ## Important Notes
 
@@ -181,3 +270,5 @@ Before writing `.ralph/verification-report.md`, verify:
 - Coverage threshold from YAML frontmatter always applies
 - Always write the report, even if everything passes
 - **Test execution is mandatory** - verification fails if tests aren't actually run
+- **Plan updates are mandatory** - when checks fail, you MUST update IMPLEMENTATION_PLAN.md
+- The implementation phase reads the plan - if you don't update it, the same mistakes repeat
