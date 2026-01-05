@@ -1,6 +1,6 @@
 {
   "name": "dev-ralph",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, integration checking, actionable reports, and auto-pause on critical issues",
   "author": {
     "name": "HengWoo"
