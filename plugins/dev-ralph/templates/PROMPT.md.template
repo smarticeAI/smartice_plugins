@@ -65,7 +65,11 @@ Before starting work, study:
 
 0a. Study `specs/*` including `specs/stdlib/*` for requirements
 0b. Study `IMPLEMENTATION_PLAN.md` for current priorities
-0c. The source code is in `src/`
+0c. **Study `lessons-learned.md` for accumulated wisdom** (if it exists)
+0d. The source code is in `src/`
+
+**Important**: The lessons-learned.md file contains discoveries from previous iterations.
+Reading it helps you avoid repeated mistakes and build on what worked.
 
 ## Build Order
 

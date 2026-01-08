@@ -92,8 +92,10 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
-# Create loop state
+# Create loop state (includes progress tracking for overbaking prevention)
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+INITIAL_COMPLETED=$(grep -c '^\- \[x\]' "$PLAN_FILE" 2>/dev/null || echo "0")
+
 cat > "$STATE_FILE" << EOF
 {
   "active": true,
@@ -106,7 +108,9 @@ cat > "$STATE_FILE" << EOF
   "started_at": "$TIMESTAMP",
   "current_task": null,
   "completed_tasks": [],
-  "verification_triggered": false
+  "verification_triggered": false,
+  "last_completed_count": $INITIAL_COMPLETED,
+  "stale_iterations": 0
 }
 EOF
 

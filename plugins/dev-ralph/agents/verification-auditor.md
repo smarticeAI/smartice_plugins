@@ -260,7 +260,96 @@ Before writing your final output, verify:
 - [ ] I verified IMPLEMENTATION_PLAN.md items vs actual implementation
 - [ ] I wrote verification-report.md with all findings
 - [ ] I updated IMPLEMENTATION_PLAN.md (unchecked failed items, added [FOUND] items)
+- [ ] I updated lessons-learned.md with discoveries from this verification
 - [ ] If deep issues found, I set "paused": true in loop-state.json
+
+---
+
+## Step 3: Update lessons-learned.md (MANDATORY)
+
+After verification, you MUST update `.ralph/lessons-learned.md` to compound learnings.
+
+### File Structure
+
+If the file doesn't exist, create it with:
+
+```markdown
+# Lessons Learned
+
+This file accumulates discoveries across Ralph loops.
+
+## Session: [today's date]
+```
+
+### What to Append
+
+Read current iteration from `.ralph/loop-state.json`.
+
+**On FAIL - Add to Error Patterns:**
+```markdown
+### Error Patterns
+
+- [iteration N] Error → Fix: Description of what failed and how to prevent it
+```
+
+**On PASS - Add to What Worked:**
+```markdown
+### What Worked
+
+- [iteration N] Pattern that succeeded (e.g., "TDD approach reduced rework")
+```
+
+**If Same Error Repeated 3+ Times - Add to Anti-Patterns:**
+```markdown
+### Anti-Patterns Found
+
+- [iteration N] What NOT to do: Description (repeated N times, now in stdlib)
+```
+
+**If Discovered Missing Requirement:**
+```markdown
+### Discovered Requirements
+
+- [iteration N] Requirement not in original spec (e.g., "Auth needs middleware layer")
+```
+
+### Pattern Library Proposals
+
+When you detect the same error pattern 3+ times, propose a stdlib addition:
+
+```markdown
+## Pattern Library Proposals
+
+### Proposed: error-handling.md
+
+Pattern observed 3 times: API routes without proper error boundaries.
+
+\`\`\`typescript
+// Proposed pattern: Always wrap API handlers
+export const withErrorBoundary = (handler) => async (req, res) => {
+  try {
+    return await handler(req, res);
+  } catch (error) {
+    // structured error response
+  }
+};
+\`\`\`
+
+Status: PENDING
+```
+
+### Edit Strategy
+
+Use the Edit tool to append to the appropriate section:
+1. Read current lessons-learned.md
+2. Find the correct section header
+3. Append new entries (don't replace existing ones)
+
+**Example edit:**
+```
+old_string: "### Error Patterns\n"
+new_string: "### Error Patterns\n\n- [iteration 5] Error → Fix: Missing route registration, added check to stdlib\n"
+```
 
 ## Important Notes
 

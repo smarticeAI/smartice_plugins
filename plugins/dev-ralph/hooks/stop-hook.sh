@@ -117,16 +117,60 @@ PROMPT_TEXT=$(cat "$PROMPT_FILE")
 NEXT_ITERATION=$((ITERATION + 1))
 NEW_STATE=""
 
+# ============================================================
+# GIT DIFF FEEDBACK (Compound Learning - Carson's insight)
+# ============================================================
+
+# Get summary of recent file changes to provide context
+CHANGES_SUMMARY=""
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    # Get stats for files changed (not full diff, just summary)
+    CHANGES_SUMMARY=$(git diff --stat HEAD 2>/dev/null | tail -5 || echo "")
+    if [[ -z "$CHANGES_SUMMARY" ]]; then
+        CHANGES_SUMMARY=$(git status --short 2>/dev/null | head -5 || echo "")
+    fi
+fi
+
+# ============================================================
+# NO-PROGRESS DETECTION (Overbaking Prevention)
+# ============================================================
+
+# Count completed items to detect stalls
+CURRENT_COMPLETED=$(grep -c '^\- \[x\]' "$RALPH_DIR/IMPLEMENTATION_PLAN.md" 2>/dev/null || echo 0)
+LAST_COMPLETED=$(echo "$STATE" | jq -r '.last_completed_count // 0')
+STALE_COUNT=$(echo "$STATE" | jq -r '.stale_iterations // 0')
+
+if [[ "$CURRENT_COMPLETED" -eq "$LAST_COMPLETED" ]]; then
+    STALE_COUNT=$((STALE_COUNT + 1))
+else
+    STALE_COUNT=0
+fi
+
+# Warn if stale for 5+ iterations
+STALE_WARNING=""
+if [[ $STALE_COUNT -ge 5 ]]; then
+    STALE_WARNING="
+⚠️ WARNING: No progress in $STALE_COUNT iterations.
+   The same tasks remain unchecked. Consider:
+   - Reviewing .ralph/lessons-learned.md for patterns
+   - Running /ralph-cancel to reassess the plan
+   - Asking the developer for guidance"
+    echo "⚠️ dev-ralph: No progress in $STALE_COUNT iterations." >&2
+    echo "   Consider /ralph-cancel and reviewing the plan." >&2
+fi
+
 if [[ "$PHASE" == "implementation" ]]; then
   if [[ "$IMPL_COMPLETE" == "true" ]]; then
     # Clear stale verification report before new verification
     rm -f "$RALPH_DIR/verification-report.md"
 
-    # Transition to verification phase
-    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" '
+    # Transition to verification phase (reset stale count on phase transition)
+    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$CURRENT_COMPLETED" '
       .iteration = $iter |
       .phase = "verification" |
-      .verification_triggered = true
+      .verification_triggered = true |
+      .last_completed_count = $completed |
+      .stale_iterations = 0
     ')
     SYSTEM_MSG="🔍 dev-ralph: Verification phase triggered (iteration $NEXT_ITERATION)
 
@@ -134,25 +178,34 @@ IMPLEMENTATION_COMPLETE detected. Now run verification:
 1. Use the verification-auditor agent to audit the implementation
 2. Check: type-check, lint, test coverage, no placeholders, all specs addressed
 3. Write report to .ralph/verification-report.md
-4. If ALL checks pass, output: <promise>VERIFIED_COMPLETE</promise>
-5. If ANY check fails, return to implementation to fix issues"
+4. **Update .ralph/lessons-learned.md with discoveries from this verification**
+5. If ALL checks pass, output: <promise>VERIFIED_COMPLETE</promise>
+6. If ANY check fails, return to implementation to fix issues"
   else
     # Continue implementation phase
-    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" '.iteration = $iter')
+    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$CURRENT_COMPLETED" --argjson stale "$STALE_COUNT" '
+      .iteration = $iter |
+      .last_completed_count = $completed |
+      .stale_iterations = $stale
+    ')
     SYSTEM_MSG="🔄 dev-ralph: Implementation iteration $NEXT_ITERATION / $MAX_ITERATIONS
-Phase: implementation | Retries: $RETRY_COUNT / $RETRY_LIMIT
-
+Phase: implementation | Retries: $RETRY_COUNT / $RETRY_LIMIT | Progress: $CURRENT_COMPLETED items done
+${STALE_WARNING}
 Continue implementing. When done:
 1. Run: bun run type-check
-2. If passing, output: <status>IMPLEMENTATION_COMPLETE</status>"
+2. If passing, output: <status>IMPLEMENTATION_COMPLETE</status>
+
+**Remember**: Read .ralph/lessons-learned.md to avoid repeating past mistakes."
   fi
 
 elif [[ "$PHASE" == "verification" ]]; then
   # Verification phase but no VERIFIED_COMPLETE - verification failed
   # Return to implementation phase
-  NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" '
+  NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$CURRENT_COMPLETED" --argjson stale "$STALE_COUNT" '
     .iteration = $iter |
-    .phase = "implementation"
+    .phase = "implementation" |
+    .last_completed_count = $completed |
+    .stale_iterations = $stale
   ')
 
   # Extract failure summary from report if it exists
@@ -183,10 +236,27 @@ echo "$NEW_STATE" > "$STATE_FILE"
 # Output JSON to block exit and feed prompt back
 # - reason: Short status shown to user
 # - systemMessage: Full PROMPT.md + status for Claude
+
+# Build git changes section if available
+GIT_CONTEXT=""
+if [[ -n "$CHANGES_SUMMARY" ]]; then
+    GIT_CONTEXT="
+---
+## Recent File Changes
+
+The following files have been modified (use this context to understand what changed):
+
+\`\`\`
+${CHANGES_SUMMARY}
+\`\`\`
+"
+fi
+
 FULL_CONTEXT="${PROMPT_TEXT}
 
 ---
-${SYSTEM_MSG}"
+${SYSTEM_MSG}
+${GIT_CONTEXT}"
 
 jq -n \
   --arg status "$SYSTEM_MSG" \

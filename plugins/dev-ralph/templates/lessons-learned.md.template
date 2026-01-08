@@ -1,0 +1,49 @@
+# Lessons Learned
+
+This file accumulates discoveries across Ralph loops. Read at start of each iteration to avoid repeating mistakes and build on what worked.
+
+---
+
+## How to Use This File
+
+- **Read at start of each iteration** - Context in PROMPT.md directs you here
+- **Append after verification** - Verification auditor adds entries
+- **Don't delete entries** - This is a running log, not a single-use report
+- **Use anchors** - Reference specific patterns with `#section-name`
+
+---
+
+## Session: {date}
+
+### Discovered Requirements
+<!-- Requirements not in original spec that we had to address -->
+<!-- Format: - [iteration N] Description of what we discovered was needed -->
+
+### Error Patterns
+<!-- Repeated mistakes and their fixes -->
+<!-- Format: - [iteration N] Error → Fix: Description -->
+
+### What Worked
+<!-- Patterns that accelerated development -->
+<!-- Format: - [iteration N] Pattern that worked well -->
+
+### Anti-Patterns Found
+<!-- Things to avoid in future iterations -->
+<!-- Format: - [iteration N] What NOT to do: Description -->
+
+---
+
+## Pattern Library Proposals
+
+<!-- When an error pattern repeats 3+ times, propose adding to stdlib/ -->
+<!-- Format:
+### Proposed: pattern-name.md
+
+Pattern observed N times. Propose adding to `.ralph/stdlib/`:
+
+```
+code example
+```
+
+Status: PENDING | ADDED | REJECTED
+-->
