@@ -65,10 +65,10 @@
     {
       "name": "dev-ralph",
       "source": "./plugins/dev-ralph",
-      "description": "Developer-agent Ralph Wiggum technique with structured planning, two-phase verification, integration checking, actionable reports, and auto-pause on critical issues",
-      "version": "1.0.4",
+      "description": "Developer-agent Ralph Wiggum technique with compound learning (lessons-learned.md), git diff feedback, no-progress detection, two-phase verification, and structured planning",
+      "version": "1.1.0",
       "category": "development",
-      "keywords": ["ralph-wiggum", "automation", "development-loop", "planning", "verification", "quality-gates"]
+      "keywords": ["ralph-wiggum", "automation", "development-loop", "planning", "verification", "quality-gates", "compound-learning"]
     }
   ]
 }
