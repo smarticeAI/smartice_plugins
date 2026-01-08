@@ -135,8 +135,12 @@ fi
 # NO-PROGRESS DETECTION (Overbaking Prevention)
 # ============================================================
 
-# Count completed items to detect stalls
-CURRENT_COMPLETED=$(grep -c '^\- \[x\]' "$RALPH_DIR/IMPLEMENTATION_PLAN.md" 2>/dev/null || echo 0)
+# Count completed items to detect stalls (ensure clean integers)
+if CURRENT_COMPLETED=$(grep -c '^\- \[x\]' "$RALPH_DIR/IMPLEMENTATION_PLAN.md" 2>/dev/null); then
+    CURRENT_COMPLETED=$(printf '%d' "$CURRENT_COMPLETED" 2>/dev/null || echo 0)
+else
+    CURRENT_COMPLETED=0
+fi
 LAST_COMPLETED=$(echo "$STATE" | jq -r '.last_completed_count // 0')
 STALE_COUNT=$(echo "$STATE" | jq -r '.stale_iterations // 0')
 

@@ -94,7 +94,11 @@ fi
 
 # Create loop state (includes progress tracking for overbaking prevention)
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-INITIAL_COMPLETED=$(grep -c '^\- \[x\]' "$PLAN_FILE" 2>/dev/null || echo "0")
+# Count initially completed items (ensure clean numeric value)
+INITIAL_COMPLETED=$(grep -c '^\- \[x\]' "$PLAN_FILE" 2>/dev/null || true)
+INITIAL_COMPLETED=${INITIAL_COMPLETED:-0}
+# Ensure it's a clean integer
+INITIAL_COMPLETED=$(echo "$INITIAL_COMPLETED" | tr -d '[:space:]')
 
 cat > "$STATE_FILE" << EOF
 {
