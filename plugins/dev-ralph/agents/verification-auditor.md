@@ -70,6 +70,24 @@ Task(
 
 Wait for all agents to complete. Each returns structured markdown.
 
+## Step 2.5: Scan for Sign Candidates
+
+Scan `.ralph/lessons-learned.md` for error patterns with count >= 3:
+
+```bash
+grep -E '\*\*\[[3-9]\]\*\*|\*\*\[1[0-9]\]\*\*' .ralph/lessons-learned.md
+```
+
+If any patterns have count >= 3, extract them for the report:
+
+```markdown
+### Sign Candidates (count >= 3)
+- **[3]** {pattern description} ← READY FOR SIGN PROMOTION
+- **[4]** {pattern description} ← READY FOR SIGN PROMOTION
+```
+
+This surfaces patterns that Main Claude should promote to Signs.
+
 ## Step 3: Write Consolidated Report
 
 Write to `.ralph/verification-report.md`:
@@ -120,8 +138,9 @@ Iteration: {from loop-state.json}
 ### Issues Requiring Attention
 {list of blocking issues}
 
-### Patterns Detected
-{any repeated patterns for Sign consideration}
+### Sign Candidates (Promote to PROMPT.md)
+{patterns from lessons-learned.md with count >= 3}
+{If none found, write "No patterns ready for Sign promotion"}
 
 ### Discoveries
 {any new requirements discovered}
@@ -147,10 +166,13 @@ Return to Main Claude:
 - Unchecked: {count} items
 - Added [FOUND]: {count} items
 
+### Sign Candidates ({count})
+{list patterns with count >= 3 from lessons-learned.md}
+
 ### For Your Learning Phase
 1. Read full report: .ralph/verification-report.md
-2. Update lessons-learned.md with patterns
-3. Add Signs if patterns repeated 3+ times
+2. Update lessons-learned.md with patterns (use **[N]** counts)
+3. **PROMOTE Sign Candidates above to PROMPT.md Signs section**
 4. Update specs with discoveries
 5. Decide: VERIFIED_COMPLETE or continue
 ```

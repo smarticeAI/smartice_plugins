@@ -332,7 +332,37 @@ ${CHANGES_SUMMARY}
 \`\`\`"
 fi
 
+# ============================================================
+# STDLIB CONTEXT INJECTION
+# ============================================================
+
+STDLIB_CONTENT=""
+STDLIB_DIR="$RALPH_DIR/stdlib"
+if [[ -d "$STDLIB_DIR" ]]; then
+    # Concatenate all stdlib pattern files
+    STDLIB_FILES=$(find "$STDLIB_DIR" -name "*.md" -type f 2>/dev/null)
+    if [[ -n "$STDLIB_FILES" ]]; then
+        STDLIB_CONTENT="
+---
+## stdlib Patterns (Project-Specific)
+
+The following patterns define the 'right way' to do things in this codebase.
+Follow these conventions when implementing.
+
+"
+        for file in $STDLIB_FILES; do
+            if [[ -f "$file" ]]; then
+                STDLIB_CONTENT+="$(cat "$file")
+
+---
+"
+            fi
+        done
+    fi
+fi
+
 FULL_CONTEXT="${PROMPT_TEXT}
+${STDLIB_CONTENT}
 
 ---
 ${SYSTEM_MSG}

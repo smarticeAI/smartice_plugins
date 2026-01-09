@@ -1,49 +1,79 @@
 # Lessons Learned
 
-This file accumulates discoveries across Ralph loops. Read at start of each iteration to avoid repeating mistakes and build on what worked.
+This file accumulates discoveries across iterations. Read at start of each iteration.
 
 ---
 
 ## How to Use This File
 
-- **Read at start of each iteration** - Context in PROMPT.md directs you here
-- **Append after verification** - Verification auditor adds entries
-- **Don't delete entries** - This is a running log, not a single-use report
-- **Use anchors** - Reference specific patterns with `#section-name`
+- **Read at start of each iteration** - Build on previous learnings
+- **Update after each item** - Main Claude adds entries
+- **Track error counts** - Use `**[N]**` prefix for repeated errors
+- **Sign promotion** - When error count reaches 3, add Sign to PROMPT.md
 
 ---
 
-## Session: {date}
+## Error Patterns (Track Counts!)
 
-### Discovered Requirements
-<!-- Requirements not in original spec that we had to address -->
-<!-- Format: - [iteration N] Description of what we discovered was needed -->
+<!--
+Format: **[COUNT]** Error description → Fix
 
-### Error Patterns
-<!-- Repeated mistakes and their fixes -->
-<!-- Format: - [iteration N] Error → Fix: Description -->
+CRITICAL: Increment COUNT each time this error recurs.
+When COUNT >= 3, Main Claude MUST add this as a Sign in PROMPT.md.
 
-### What Worked
-<!-- Patterns that accelerated development -->
-<!-- Format: - [iteration N] Pattern that worked well -->
-
-### Anti-Patterns Found
-<!-- Things to avoid in future iterations -->
-<!-- Format: - [iteration N] What NOT to do: Description -->
+Example:
+**[1]** Forgot to register routes → Add route registration to checklist
+**[2]** Forgot to register routes → Same issue, need Sign if it happens again
+**[3]** Forgot to register routes → PROMOTED TO SIGN in PROMPT.md
+-->
 
 ---
 
-## Pattern Library Proposals
+## What Worked
 
-<!-- When an error pattern repeats 3+ times, propose adding to stdlib/ -->
-<!-- Format:
+<!--
+Successful patterns to replicate.
+Format: - Pattern description (iteration N)
+
+Example:
+- Using Result<T, E> type for error handling (iteration 3)
+- Barrel exports in index.ts for clean imports (iteration 5)
+-->
+
+---
+
+## Discovered Requirements
+
+<!--
+Requirements not in original spec that we discovered.
+Format: - Discovery (iteration N)
+
+Example:
+- API requires auth header even for public endpoints (iteration 2)
+- Database has 255 char limit on username (iteration 4)
+-->
+
+---
+
+## Iteration Log
+
+<!--
+Brief outcome of each iteration.
+Format: Iteration N: [PASS/FAIL] Brief description
+-->
+
+---
+
+## stdlib Proposals
+
+<!--
+When a pattern proves useful 3+ times, propose for stdlib.
+Format:
+
 ### Proposed: pattern-name.md
-
-Pattern observed N times. Propose adding to `.ralph/stdlib/`:
-
+Observed N times. Code:
 ```
-code example
+example
 ```
-
 Status: PENDING | ADDED | REJECTED
 -->

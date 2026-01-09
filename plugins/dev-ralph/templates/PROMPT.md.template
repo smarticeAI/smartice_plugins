@@ -68,25 +68,38 @@ Study `specs/*.md` for:
 - Requirements and edge cases
 - Success criteria
 
-### 3. Read Lessons Learned
+### 3. Read stdlib Patterns (if exists)
+If `stdlib/*.md` files exist, study them for:
+- Project-specific code patterns
+- The "right way" to do things in this codebase
+- Error handling conventions
+
+### 4. Read Lessons Learned
 Study `lessons-learned.md` for:
 - Patterns that worked in previous iterations
-- Errors to avoid
+- **Error Patterns with counts** - Note `**[N]**` prefixes
 - Discovered requirements
 
-### 4. Check Signs Section Below
-**Critical**: Signs are hard-learned lessons. Follow them.
+### 5. Check Signs Section Below
+**CRITICAL**: Signs are hard-learned anti-patterns. ALWAYS follow them.
 
 ---
 
 ## Signs (Learned Anti-Patterns)
 
-<!-- Signs are added here when patterns repeat 3+ times -->
-<!-- Format:
-### SIGN: {title}
+Signs are errors that repeated 3+ times. They are auto-promoted from lessons-learned.md.
+**YOU MUST FOLLOW THESE** - they represent hard-learned lessons.
+
+<!--
+Main Claude: When you see **[3]** or higher in lessons-learned.md Error Patterns,
+ADD A NEW SIGN HERE using this format:
+
+### SIGN: {short title}
 - **Problem**: {what goes wrong}
-- **Solution**: {how to fix}
+- **Solution**: {how to fix it}
 - **Added**: iteration {N}
+
+Then remove or reset the count in lessons-learned.md.
 -->
 
 ---
@@ -122,13 +135,26 @@ Output this exact tag:
 
 ---
 
-## After Each Item (Verification Feedback)
+## After Each Item (Compound Learning)
 
 When you output `<item>COMPLETE</item>`, the stop hook will:
 1. Trigger verification agents
-2. Capture learnings
-3. Feed back results
-4. Re-prompt you for the next item
+2. Feed back results
+3. Re-prompt you for the next item
+
+**Your Learning Responsibilities** (before next item):
+
+1. **Update lessons-learned.md**:
+   - If new error: Add `**[1]** Error description → Fix`
+   - If repeat error: Increment count `**[2]**` → `**[3]**`
+   - Add successful patterns to "What Worked"
+
+2. **Check for Sign Promotion**:
+   - If any error has count `**[3]**` or higher
+   - Add Sign to PROMPT.md Signs section
+   - Reset/remove the count in lessons-learned.md
+
+3. **Read updated context** before starting next item
 
 **This is compound learning**: each iteration benefits from previous learnings.
 
@@ -177,14 +203,17 @@ If stuck:
 ┌─────────────────────────────────────────┐
 │  ITERATION LOOP                         │
 │                                         │
-│  1. Pick FIRST unchecked item           │
-│  2. Implement fully                     │
-│  3. Type-check                          │
-│  4. Mark [x]                            │
-│  5. Output: <item>COMPLETE</item>       │
+│  1. Read context (plan, specs, stdlib,  │
+│     lessons-learned, Signs)             │
+│  2. Pick FIRST unchecked item           │
+│  3. Implement fully                     │
+│  4. Type-check                          │
+│  5. Mark [x]                            │
+│  6. Output: <item>COMPLETE</item>       │
 │                                         │
 │  → Verification runs                    │
-│  → Learnings captured                   │
+│  → Update lessons-learned.md            │
+│  → Promote errors to Signs if count>=3  │
 │  → Next iteration starts                │
 │                                         │
 │  UNTIL: All items done                  │
