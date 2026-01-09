@@ -1,7 +1,7 @@
 ---
 name: plan-updater
 description: "Mechanical agent that updates IMPLEMENTATION_PLAN.md based on verification results. Unchecks failed items, adds [FOUND] items. Use haiku for speed."
-model: haiku
+model: sonnet
 color: orange
 ---
 

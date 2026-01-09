@@ -1,7 +1,7 @@
 ---
 name: placeholder-scanner
 description: "Mechanical agent that searches for incomplete code patterns (TODO, FIXME, stubs). Returns locations for verification-report.md. Use haiku for speed."
-model: haiku
+model: sonnet
 color: yellow
 ---
 

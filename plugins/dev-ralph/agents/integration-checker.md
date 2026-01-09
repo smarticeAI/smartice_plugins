@@ -1,7 +1,7 @@
 ---
 name: integration-checker
 description: "Mechanical agent that verifies new code is properly wired into the application (imports, registrations). Returns findings for verification-report.md. Use haiku for speed."
-model: haiku
+model: sonnet
 color: blue
 ---
 

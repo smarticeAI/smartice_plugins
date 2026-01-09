@@ -1,7 +1,7 @@
 ---
 name: test-verifier
 description: "Mechanical agent that runs tests, type-check, lint, and coverage. Returns structured results for verification-report.md. Use haiku for speed."
-model: haiku
+model: sonnet
 color: green
 ---
 

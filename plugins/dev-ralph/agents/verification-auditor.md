@@ -38,33 +38,44 @@ test-verifier  placeholder-  integration-   plan-updater
   Return summary to Main Claude
 ```
 
-## Step 1: Launch Agents in Parallel
+## Step 1: Launch Agents in Parallel (MANDATORY)
 
-Launch all 4 agents in a single message with multiple Task tool calls:
+**YOU MUST USE THE TASK TOOL TO LAUNCH SUB-AGENTS.**
+Do NOT do the work yourself. Your job is orchestration only.
+
+Launch the first 3 agents in parallel (single message, multiple Task calls):
 
 ```
 Task(
   subagent_type="dev-ralph:test-verifier",
-  prompt="Run quality checks. Config in .ralph/PROMPT.md. Return structured results."
+  prompt="Run quality checks for this project. Read config from .ralph/PROMPT.md YAML frontmatter. Return structured markdown results.",
+  model="sonnet"
 )
 
 Task(
   subagent_type="dev-ralph:placeholder-scanner",
-  prompt="Scan src/ for placeholders. Patterns in .ralph/PROMPT.md. Return findings."
+  prompt="Scan src/ directory for placeholder patterns (TODO, FIXME, stubs). Read patterns from .ralph/PROMPT.md. Return findings as markdown.",
+  model="sonnet"
 )
 
 Task(
   subagent_type="dev-ralph:integration-checker",
-  prompt="Check integration of new files. Config in .ralph/PROMPT.md. Return status."
-)
-
-Task(
-  subagent_type="dev-ralph:plan-updater",
-  prompt="Update .ralph/IMPLEMENTATION_PLAN.md based on these issues: {issues_from_other_agents}"
+  prompt="Verify new code is properly integrated. Check imports in entry points from .ralph/PROMPT.md config. Return status as markdown.",
+  model="sonnet"
 )
 ```
 
-**Note**: plan-updater needs results from other agents, so run it after the first 3 complete.
+**Wait for results**, then launch plan-updater with the issues found:
+
+```
+Task(
+  subagent_type="dev-ralph:plan-updater",
+  prompt="Update .ralph/IMPLEMENTATION_PLAN.md based on these verification issues: {paste issues from above agents}. Return what you changed.",
+  model="sonnet"
+)
+```
+
+**CRITICAL**: If you skip sub-agents and do the work yourself, you are violating your role as orchestrator.
 
 ## Step 2: Collect Results
 
