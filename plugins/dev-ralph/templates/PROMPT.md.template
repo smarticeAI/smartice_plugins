@@ -1,6 +1,5 @@
 ---
 # dev-ralph Configuration
-# Customize these values based on your project
 
 iteration_limit: 500      # Maximum iterations before auto-stop
 retry_limit: 5            # Retries before asking developer for help
@@ -18,160 +17,178 @@ placeholder_patterns:
 # Build commands for this project
 # Set these to match your project's toolchain
 build_commands:
-  type_check: "bun run type-check"   # Type checking command (TypeScript, Flow, mypy, etc.)
-  lint: "bun run lint"               # Linting command (ESLint, Prettier, Ruff, etc.)
+  type_check: "bun run type-check"   # Type checking command
+  lint: "bun run lint"               # Linting command
   test: "bun run test"               # Test runner command
   coverage: "bun run test:coverage"  # Test coverage command
-  # test_discovery: "bun run test --listTests"  # Optional: list test files for discovery verification
 
 # Integration patterns to verify (supports regex: prefix)
-# These patterns are grepped in entry points to verify new code is wired in
 integration_patterns:
-  # Literal strings (exact match)
   # - "app.register"
-  # - "router.post"
-  # Regex patterns (prefix with "regex:")
   # - "regex:@(app|router)\\.(get|post|put|delete)"
 
 # Entry points for integration verification
-# List files where new modules should be imported/registered
-# If empty, auto-detects based on project type (main.ts, app.py, etc.)
 entry_points:
   # - "src/main.ts"
-  # - "src/app.py"
-
-# Categories excluded from integration checks
-# Files in these categories don't require explicit import/usage verification
-integration_exclusions:
-  categories:
-    # - utilities    # utils/, helpers/, lib/ directories
-    # - types        # types/, *.d.ts, typing.py, *_types.py
-    # - constants    # constants/, config/ directories
 
 # Integration strictness: strict | warn | lenient
-# - strict: Partial integration (import without usage) is a FAIL
-# - warn: Partial integration is a WARNING, verification passes
-# - lenient: Only check core integration (import exists), skip usage check
 integration_strictness: warn
 ---
 
-# PROMPT.md
+# PROMPT.md - Per-Item Implementation Loop
 
 This file is fed to Claude at the start of each iteration.
 
+## Core Principle: ONE ITEM AT A TIME
+
+Each iteration, you implement **exactly ONE item** from the implementation plan:
+1. Pick the first unchecked `[ ]` item
+2. Implement it fully
+3. Verify it works
+4. Mark it `[x]`
+5. Output: `<item>COMPLETE</item>`
+
+The stop hook will re-feed this prompt for the next item until all items are done.
+
+---
+
 ## Context Loading
 
-Before starting work, study:
+Before starting work, read these in order:
 
-0a. Study `specs/*` including `specs/stdlib/*` for requirements
-0b. Study `IMPLEMENTATION_PLAN.md` for current priorities
-0c. **Study `lessons-learned.md` for accumulated wisdom** (if it exists)
-0d. The source code is in `src/`
+### 1. Read Implementation Plan
+Study `IMPLEMENTATION_PLAN.md` for:
+- The FIRST unchecked `[ ]` item - **this is your task**
+- Phase organization (which phase are you in?)
+- Progress so far
 
-**Important**: The lessons-learned.md file contains discoveries from previous iterations.
-Reading it helps you avoid repeated mistakes and build on what worked.
+### 2. Read Specs
+Study `specs/*.md` for:
+- Technical Contract (data models, API shapes)
+- Requirements and edge cases
+- Success criteria
 
-## Build Order
+### 3. Read Lessons Learned
+Study `lessons-learned.md` for:
+- Patterns that worked in previous iterations
+- Errors to avoid
+- Discovered requirements
 
-**stdlib modules MUST be built BEFORE features.**
+### 4. Check Signs Section Below
+**Critical**: Signs are hard-learned lessons. Follow them.
 
-1. **stdlib First**: If `specs/stdlib/*.md` exists:
-   - Build those modules first in `src/stdlib/`
-   - Write tests for stdlib modules
-   - Features will import from stdlib
-   - Do NOT proceed to features until stdlib is complete
+---
 
-2. **Features Second**: After stdlib is complete:
-   - Implement features in priority order
-   - All features should use stdlib utilities
-   - Don't duplicate stdlib functionality in features
+## Signs (Learned Anti-Patterns)
 
-3. **stdlib Updates**: If you discover a pattern that should be in stdlib:
-   - Add to `src/stdlib/` first
-   - Then use it in feature code
-   - This keeps the codebase DRY
+<!-- Signs are added here when patterns repeat 3+ times -->
+<!-- Format:
+### SIGN: {title}
+- **Problem**: {what goes wrong}
+- **Solution**: {how to fix}
+- **Added**: iteration {N}
+-->
 
-## Your Task
+---
 
-Pick the most important unfinished item from IMPLEMENTATION_PLAN.md and implement it.
+## Your Task: ONE ITEM
 
-**One item per iteration.** Focus on completing one task fully before moving to the next.
+**DO NOT implement multiple items.** Just the first unchecked one.
 
-## Subagent Usage (Context Efficiency)
-
-Your context window is precious. Use subagents to avoid filling it with search output.
-
-### MUST Use Subagent (Task tool with subagent_type)
-- **Searching across >5 files** → `subagent_type=Explore` (built-in fast search)
-- **Finding all usages of a function** → `subagent_type=Explore`
-- **Understanding unfamiliar code area** → `subagent_type=Explore`
-
-Note: "Explore" is a built-in Claude Code agent optimized for codebase exploration.
-
-### Direct Tools OK
-- Reading a specific known file → Read tool
-- Checking if a pattern exists in 1-2 files → Grep tool
-- Listing files in a directory → Glob tool
-
-### Example: Before Implementing Feature X
-
-**DON'T** (fills your context):
-```
-Use Grep to search all .ts files for similar patterns...
-[500 lines of output waste your context]
-```
-
-**DO** (preserves context):
-```
-Use Task tool with subagent_type=Explore:
-"Find all existing implementations similar to Feature X,
- summarize patterns and locations"
-→ Returns: 5-line summary with file:line references
-```
-
-## Additional Guidelines
-
-- Mark completed items in IMPLEMENTATION_PLAN.md with `[x]`
-- Use only 1 subagent for build/test operations (avoid parallel builds)
-- Focus on one task per iteration
-
-## Backpressure
-
-After implementing, run the type checker:
-
+### Step 1: Identify Your Task
 ```bash
-bun run type-check
+# Find the first unchecked item
+grep -m1 '^\- \[ \]' IMPLEMENTATION_PLAN.md
 ```
 
-If errors occur, fix them before proceeding.
+### Step 2: Implement It Fully
+- Write complete code (no placeholders!)
+- Follow patterns from lessons-learned.md
+- Match spec requirements exactly
 
-## Completion Protocol
+### Step 3: Verify It Works
+```bash
+bun run type-check  # Must pass
+```
 
-When implementation is complete (type-check passes):
+### Step 4: Mark Complete
+Edit IMPLEMENTATION_PLAN.md: change `[ ]` to `[x]` for this item.
 
-1. Output: `<status>IMPLEMENTATION_COMPLETE</status>`
-2. This triggers the verification phase
-3. Run the verification-auditor agent
-4. If verification passes, output: `<promise>VERIFIED_COMPLETE</promise>`
+### Step 5: Signal Done
+Output this exact tag:
+```
+<item>COMPLETE</item>
+```
+
+---
+
+## After Each Item (Verification Feedback)
+
+When you output `<item>COMPLETE</item>`, the stop hook will:
+1. Trigger verification agents
+2. Capture learnings
+3. Feed back results
+4. Re-prompt you for the next item
+
+**This is compound learning**: each iteration benefits from previous learnings.
+
+---
+
+## When All Items Are Done
+
+After the LAST item is complete:
+1. Run full verification: `Task(subagent_type="dev-ralph:verification-auditor", ...)`
+2. Read `.ralph/verification-report.md`
+3. Update `lessons-learned.md` with final learnings
+4. If ALL checks pass: Output `<promise>VERIFIED_COMPLETE</promise>`
+5. If ANY check fails: Fix and re-verify
+
+---
 
 ## Anti-Cheating Rules
 
-These are NON-NEGOTIABLE:
+**NON-NEGOTIABLE:**
 
-99999999999999. DO NOT IMPLEMENT PLACEHOLDERS.
-99999999999998. NO TODO comments, no unimplemented stubs.
-99999999999997. FULL IMPLEMENTATIONS ONLY OR I WILL YELL AT YOU.
+1. NO placeholder code (TODO, FIXME, stubs)
+2. NO empty function bodies
+3. NO unimplemented interfaces
+4. FULL implementations only
 
 If you cannot implement something:
-- Ask the developer for help (after retry limit)
-- Do NOT fake it with placeholder code
-- Do NOT use empty function bodies
-- Do NOT leave TODO comments
+- Document what's blocking you
+- Ask the developer for help
+- Do NOT fake it
+
+---
 
 ## Error Recovery
 
-If stuck after multiple attempts:
-1. Document what you tried
-2. Document what went wrong
-3. Ask the developer for guidance
-4. Wait for response before continuing
+If stuck:
+1. Read lessons-learned.md for similar issues
+2. Check if a Sign applies
+3. Document what you tried
+4. Ask developer for guidance
+
+---
+
+## Summary
+
+```
+┌─────────────────────────────────────────┐
+│  ITERATION LOOP                         │
+│                                         │
+│  1. Pick FIRST unchecked item           │
+│  2. Implement fully                     │
+│  3. Type-check                          │
+│  4. Mark [x]                            │
+│  5. Output: <item>COMPLETE</item>       │
+│                                         │
+│  → Verification runs                    │
+│  → Learnings captured                   │
+│  → Next iteration starts                │
+│                                         │
+│  UNTIL: All items done                  │
+│  THEN: Final verification               │
+│  THEN: <promise>VERIFIED_COMPLETE</promise>
+└─────────────────────────────────────────┘
+```

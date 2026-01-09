@@ -1,0 +1,11 @@
+{
+  "name": "simple-iteration-test",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

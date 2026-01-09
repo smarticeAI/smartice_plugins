@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# dev-ralph Stop Hook
-# Implements two-phase completion: IMPLEMENTATION_COMPLETE → verification → VERIFIED_COMPLETE
-# Based on Geoffrey Huntley's Ralph Wiggum technique with developer-agent collaboration
+# dev-ralph Stop Hook (v2 - Per-Item Verification)
+# Implements per-item verification loop with compound learning
+# Based on Geoffrey Huntley's Ralph Wiggum technique
 
 set -euo pipefail
 
@@ -13,6 +13,8 @@ HOOK_INPUT=$(cat)
 RALPH_DIR=".ralph"
 STATE_FILE="$RALPH_DIR/loop-state.json"
 PROMPT_FILE="$RALPH_DIR/PROMPT.md"
+PLAN_FILE="$RALPH_DIR/IMPLEMENTATION_PLAN.md"
+LESSONS_FILE="$RALPH_DIR/lessons-learned.md"
 
 # If no active loop, allow exit
 if [[ ! -f "$STATE_FILE" ]]; then
@@ -37,7 +39,6 @@ RETRY_LIMIT=$(echo "$STATE" | jq -r '.retry_limit // 5')
 # Validate numeric fields
 if [[ ! "$ITERATION" =~ ^[0-9]+$ ]]; then
   echo "⚠️  dev-ralph: State file corrupted (iteration: '$ITERATION')" >&2
-  echo "   Stopping loop. Run /ralph-plan to start fresh." >&2
   rm "$STATE_FILE"
   exit 0
 fi
@@ -51,7 +52,6 @@ fi
 # Check iteration limit
 if [[ $MAX_ITERATIONS -gt 0 ]] && [[ $ITERATION -ge $MAX_ITERATIONS ]]; then
   echo "🛑 dev-ralph: Iteration limit ($MAX_ITERATIONS) reached."
-  echo "   Completed $ITERATION iterations."
   rm "$STATE_FILE"
   exit 0
 fi
@@ -86,24 +86,6 @@ if [[ -z "$LAST_OUTPUT" ]]; then
   exit 0
 fi
 
-# ============================================================
-# TWO-PHASE COMPLETION LOGIC
-# ============================================================
-
-# Check for VERIFIED_COMPLETE (final exit condition)
-if echo "$LAST_OUTPUT" | grep -q "<promise>VERIFIED_COMPLETE</promise>"; then
-  echo "✅ dev-ralph: Verified complete after $ITERATION iterations!"
-  echo "   All specs implemented and verified."
-  rm "$STATE_FILE"
-  exit 0
-fi
-
-# Check for IMPLEMENTATION_COMPLETE (triggers verification phase)
-IMPL_COMPLETE=false
-if echo "$LAST_OUTPUT" | grep -q "<status>IMPLEMENTATION_COMPLETE</status>"; then
-  IMPL_COMPLETE=true
-fi
-
 # Read prompt file
 if [[ ! -f "$PROMPT_FILE" ]]; then
   echo "⚠️  dev-ralph: PROMPT.md not found" >&2
@@ -113,18 +95,57 @@ fi
 
 PROMPT_TEXT=$(cat "$PROMPT_FILE")
 
-# Build system message and update state based on phase
-NEXT_ITERATION=$((ITERATION + 1))
-NEW_STATE=""
-
 # ============================================================
-# GIT DIFF FEEDBACK (Compound Learning - Carson's insight)
+# COUNT ITEMS
 # ============================================================
 
-# Get summary of recent file changes to provide context
+# Count completed and remaining items (handle missing file and ensure numeric)
+if [[ -f "$PLAN_FILE" ]]; then
+  COMPLETED_COUNT=$(grep -c '^\- \[x\]' "$PLAN_FILE" 2>/dev/null) || COMPLETED_COUNT=0
+  REMAINING_COUNT=$(grep -c '^\- \[ \]' "$PLAN_FILE" 2>/dev/null) || REMAINING_COUNT=0
+else
+  COMPLETED_COUNT=0
+  REMAINING_COUNT=0
+fi
+
+# Ensure numeric (strip any whitespace/non-digits)
+COMPLETED_COUNT=${COMPLETED_COUNT//[^0-9]/}
+REMAINING_COUNT=${REMAINING_COUNT//[^0-9]/}
+COMPLETED_COUNT=${COMPLETED_COUNT:-0}
+REMAINING_COUNT=${REMAINING_COUNT:-0}
+
+TOTAL_ITEMS=$((COMPLETED_COUNT + REMAINING_COUNT))
+
+# ============================================================
+# SIGNAL DETECTION
+# ============================================================
+
+# Check for VERIFIED_COMPLETE (final exit condition)
+if echo "$LAST_OUTPUT" | grep -q "<promise>VERIFIED_COMPLETE</promise>"; then
+  echo "✅ dev-ralph: Verified complete after $ITERATION iterations!"
+  echo "   $COMPLETED_COUNT/$TOTAL_ITEMS items implemented and verified."
+  rm "$STATE_FILE"
+  exit 0
+fi
+
+# Check for ITEM_COMPLETE (single item done, triggers per-item verification)
+ITEM_COMPLETE=false
+if echo "$LAST_OUTPUT" | grep -q "<item>COMPLETE</item>"; then
+  ITEM_COMPLETE=true
+fi
+
+# Check for IMPLEMENTATION_COMPLETE (all items done, triggers final verification)
+IMPL_COMPLETE=false
+if echo "$LAST_OUTPUT" | grep -q "<status>IMPLEMENTATION_COMPLETE</status>"; then
+  IMPL_COMPLETE=true
+fi
+
+# ============================================================
+# GIT DIFF FEEDBACK (Compound Learning)
+# ============================================================
+
 CHANGES_SUMMARY=""
 if git rev-parse --git-dir >/dev/null 2>&1; then
-    # Get stats for files changed (not full diff, just summary)
     CHANGES_SUMMARY=$(git diff --stat HEAD 2>/dev/null | tail -5 || echo "")
     if [[ -z "$CHANGES_SUMMARY" ]]; then
         CHANGES_SUMMARY=$(git status --short 2>/dev/null | head -5 || echo "")
@@ -132,128 +153,183 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 # ============================================================
-# NO-PROGRESS DETECTION (Overbaking Prevention)
+# STALE DETECTION
 # ============================================================
 
-# Count completed items to detect stalls (ensure clean integers)
-if CURRENT_COMPLETED=$(grep -c '^\- \[x\]' "$RALPH_DIR/IMPLEMENTATION_PLAN.md" 2>/dev/null); then
-    CURRENT_COMPLETED=$(printf '%d' "$CURRENT_COMPLETED" 2>/dev/null || echo 0)
-else
-    CURRENT_COMPLETED=0
-fi
 LAST_COMPLETED=$(echo "$STATE" | jq -r '.last_completed_count // 0')
 STALE_COUNT=$(echo "$STATE" | jq -r '.stale_iterations // 0')
 
-if [[ "$CURRENT_COMPLETED" -eq "$LAST_COMPLETED" ]]; then
+if [[ "$COMPLETED_COUNT" -eq "$LAST_COMPLETED" ]]; then
     STALE_COUNT=$((STALE_COUNT + 1))
 else
     STALE_COUNT=0
 fi
 
-# Warn if stale for 5+ iterations
 STALE_WARNING=""
 if [[ $STALE_COUNT -ge 5 ]]; then
     STALE_WARNING="
 ⚠️ WARNING: No progress in $STALE_COUNT iterations.
-   The same tasks remain unchecked. Consider:
-   - Reviewing .ralph/lessons-learned.md for patterns
-   - Running /ralph-cancel to reassess the plan
-   - Asking the developer for guidance"
-    echo "⚠️ dev-ralph: No progress in $STALE_COUNT iterations." >&2
-    echo "   Consider /ralph-cancel and reviewing the plan." >&2
+   Consider: /ralph-cancel or asking developer for help."
 fi
 
-if [[ "$PHASE" == "implementation" ]]; then
-  if [[ "$IMPL_COMPLETE" == "true" ]]; then
-    # Clear stale verification report before new verification
-    rm -f "$RALPH_DIR/verification-report.md"
+# ============================================================
+# STATE MACHINE
+# ============================================================
 
-    # Transition to verification phase (reset stale count on phase transition)
-    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$CURRENT_COMPLETED" '
+NEXT_ITERATION=$((ITERATION + 1))
+NEW_STATE=""
+SYSTEM_MSG=""
+
+# ----------------------------------------------------------
+# ITEM_COMPLETE: Per-item verification and continue
+# ----------------------------------------------------------
+if [[ "$ITEM_COMPLETE" == "true" ]]; then
+
+  if [[ $REMAINING_COUNT -gt 0 ]]; then
+    # More items remain - continue to next item
+    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$COMPLETED_COUNT" '
       .iteration = $iter |
-      .phase = "verification" |
-      .verification_triggered = true |
+      .phase = "implementation" |
       .last_completed_count = $completed |
       .stale_iterations = 0
     ')
-    SYSTEM_MSG="🔍 dev-ralph: Verification phase triggered (iteration $NEXT_ITERATION)
 
-IMPLEMENTATION_COMPLETE detected. Now run verification:
-1. Use the verification-auditor agent to audit the implementation
-2. Check: type-check, lint, test coverage, no placeholders, all specs addressed
-3. Write report to .ralph/verification-report.md
-4. **Update .ralph/lessons-learned.md with discoveries from this verification**
-5. If ALL checks pass, output: <promise>VERIFIED_COMPLETE</promise>
-6. If ANY check fails, return to implementation to fix issues"
+    SYSTEM_MSG="✅ dev-ralph: Item complete! (iteration $NEXT_ITERATION)
+
+Progress: $COMPLETED_COUNT/$TOTAL_ITEMS items done | $REMAINING_COUNT remaining
+
+**Per-item verification passed.** Now:
+1. Run verification-auditor: Task(subagent_type=\"dev-ralph:verification-auditor\", prompt=\"Quick verification for completed item\")
+2. Read verification feedback
+3. Update .ralph/lessons-learned.md with learnings
+4. Pick the NEXT unchecked item from IMPLEMENTATION_PLAN.md
+5. Implement it fully
+6. Output: <item>COMPLETE</item>
+
+**Remember**: Read lessons-learned.md - previous iterations may have learned useful patterns!"
+
   else
-    # Continue implementation phase
-    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$CURRENT_COMPLETED" --argjson stale "$STALE_COUNT" '
+    # No more items - all implementation done, trigger final verification
+    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$COMPLETED_COUNT" '
       .iteration = $iter |
+      .phase = "final_verification" |
       .last_completed_count = $completed |
-      .stale_iterations = $stale
+      .stale_iterations = 0
     ')
-    SYSTEM_MSG="🔄 dev-ralph: Implementation iteration $NEXT_ITERATION / $MAX_ITERATIONS
-Phase: implementation | Retries: $RETRY_COUNT / $RETRY_LIMIT | Progress: $CURRENT_COMPLETED items done
-${STALE_WARNING}
-Continue implementing. When done:
-1. Run: bun run type-check
-2. If passing, output: <status>IMPLEMENTATION_COMPLETE</status>
 
-**Remember**: Read .ralph/lessons-learned.md to avoid repeating past mistakes."
+    SYSTEM_MSG="🎉 dev-ralph: All items complete! (iteration $NEXT_ITERATION)
+
+Progress: $COMPLETED_COUNT/$TOTAL_ITEMS items done | **ALL ITEMS IMPLEMENTED**
+
+**Final verification phase:**
+1. Run full verification: Task(subagent_type=\"dev-ralph:verification-auditor\", prompt=\"Final verification - all items complete\")
+2. Read .ralph/verification-report.md
+3. Update .ralph/lessons-learned.md with final learnings
+4. If ALL checks pass: Output <promise>VERIFIED_COMPLETE</promise>
+5. If ANY check fails: Fix issues and re-verify"
   fi
 
-elif [[ "$PHASE" == "verification" ]]; then
-  # Verification phase but no VERIFIED_COMPLETE - verification failed
-  # Return to implementation phase
-  NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$CURRENT_COMPLETED" --argjson stale "$STALE_COUNT" '
+# ----------------------------------------------------------
+# IMPLEMENTATION_COMPLETE: Legacy signal (redirect to final verification)
+# ----------------------------------------------------------
+elif [[ "$IMPL_COMPLETE" == "true" ]]; then
+  # Treat as final verification trigger
+  NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$COMPLETED_COUNT" '
+    .iteration = $iter |
+    .phase = "final_verification" |
+    .last_completed_count = $completed |
+    .stale_iterations = 0
+  ')
+
+  SYSTEM_MSG="🔍 dev-ralph: Final verification triggered (iteration $NEXT_ITERATION)
+
+Run full verification:
+1. Task(subagent_type=\"dev-ralph:verification-auditor\", prompt=\"Final verification\")
+2. Read .ralph/verification-report.md
+3. Update lessons-learned.md
+4. If ALL pass: <promise>VERIFIED_COMPLETE</promise>
+5. If ANY fail: fix and re-verify"
+
+# ----------------------------------------------------------
+# FINAL_VERIFICATION phase: waiting for VERIFIED_COMPLETE
+# ----------------------------------------------------------
+elif [[ "$PHASE" == "final_verification" ]]; then
+  # Still in final verification but no VERIFIED_COMPLETE - must have failed
+  NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$COMPLETED_COUNT" --argjson stale "$STALE_COUNT" '
     .iteration = $iter |
     .phase = "implementation" |
     .last_completed_count = $completed |
     .stale_iterations = $stale
   ')
 
-  # Extract failure summary from report if it exists
-  FAILURE_SUMMARY=""
-  if [[ -f "$RALPH_DIR/verification-report.md" ]]; then
-    # Get the Issues Found or Summary section (first 8 lines)
-    FAILURE_SUMMARY=$(grep -A5 "## Issues Found\|## Summary\|Status:" "$RALPH_DIR/verification-report.md" 2>/dev/null | head -8 || echo "")
-  fi
+  SYSTEM_MSG="🔄 dev-ralph: Verification failed, returning to implementation (iteration $NEXT_ITERATION)
 
-  if [[ -n "$FAILURE_SUMMARY" ]]; then
-    SYSTEM_MSG="🔄 dev-ralph: Returning to implementation (iteration $NEXT_ITERATION)
+Check .ralph/verification-report.md for issues.
+Fix problems, then output <item>COMPLETE</item> when ready."
 
-Verification failed:
-$FAILURE_SUMMARY
+# ----------------------------------------------------------
+# DEFAULT: Continue implementation (or trigger final verification if all done)
+# ----------------------------------------------------------
+else
+  # Check if all items are already complete
+  if [[ $REMAINING_COUNT -eq 0 ]] && [[ $COMPLETED_COUNT -gt 0 ]]; then
+    # All items done - trigger final verification
+    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$COMPLETED_COUNT" '
+      .iteration = $iter |
+      .phase = "final_verification" |
+      .last_completed_count = $completed |
+      .stale_iterations = 0
+    ')
 
-Fix these issues, then output <status>IMPLEMENTATION_COMPLETE</status> when ready."
+    SYSTEM_MSG="🎉 dev-ralph: All $COMPLETED_COUNT items complete! (iteration $NEXT_ITERATION)
+
+**All items in IMPLEMENTATION_PLAN.md are checked [x].**
+
+**Final verification phase:**
+1. Run full verification: Task(subagent_type=\"dev-ralph:verification-auditor\", prompt=\"Final verification - all items complete\")
+2. Read .ralph/verification-report.md
+3. Update .ralph/lessons-learned.md with final learnings
+4. If ALL checks pass: Output <promise>VERIFIED_COMPLETE</promise>
+5. If ANY check fails: Fix issues and re-verify"
   else
-    SYSTEM_MSG="🔄 dev-ralph: Returning to implementation (iteration $NEXT_ITERATION)
+    # Items remain - continue implementation
+    NEW_STATE=$(echo "$STATE" | jq --argjson iter "$NEXT_ITERATION" --argjson completed "$COMPLETED_COUNT" --argjson stale "$STALE_COUNT" '
+      .iteration = $iter |
+      .last_completed_count = $completed |
+      .stale_iterations = $stale
+    ')
 
-Verification failed. Check .ralph/verification-report.md for issues.
-Fix the problems, then output <status>IMPLEMENTATION_COMPLETE</status> when ready."
+    SYSTEM_MSG="🔄 dev-ralph: Implementation iteration $NEXT_ITERATION / $MAX_ITERATIONS
+Progress: $COMPLETED_COUNT/$TOTAL_ITEMS items | Retries: $RETRY_COUNT/$RETRY_LIMIT
+${STALE_WARNING}
+
+**Your task**: Implement ONE item at a time.
+1. Pick the FIRST unchecked [ ] item from IMPLEMENTATION_PLAN.md
+2. Implement it fully (no placeholders!)
+3. Run type-check
+4. Mark it [x] in IMPLEMENTATION_PLAN.md
+5. Output: <item>COMPLETE</item>
+
+**Remember**: Read .ralph/lessons-learned.md to avoid past mistakes."
   fi
 fi
+
+# ============================================================
+# OUTPUT
+# ============================================================
 
 # Write updated state
 echo "$NEW_STATE" > "$STATE_FILE"
 
-# Output JSON to block exit and feed prompt back
-# - reason: Short status shown to user
-# - systemMessage: Full PROMPT.md + status for Claude
-
-# Build git changes section if available
+# Build git changes section
 GIT_CONTEXT=""
 if [[ -n "$CHANGES_SUMMARY" ]]; then
     GIT_CONTEXT="
 ---
-## Recent File Changes
-
-The following files have been modified (use this context to understand what changed):
-
+## Recent Changes
 \`\`\`
 ${CHANGES_SUMMARY}
-\`\`\`
-"
+\`\`\`"
 fi
 
 FULL_CONTEXT="${PROMPT_TEXT}
