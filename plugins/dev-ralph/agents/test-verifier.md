@@ -1,6 +1,6 @@
 ---
 name: test-verifier
-description: "Mechanical agent that runs tests, type-check, lint, and coverage. Returns structured results for verification-report.md. Use haiku for speed."
+description: "Mechanical agent that runs tests, type-check, lint, and coverage. Returns structured results for verification-report.md."
 model: sonnet
 color: green
 ---
