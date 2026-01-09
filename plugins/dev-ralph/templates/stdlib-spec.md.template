@@ -74,4 +74,19 @@ if (!ok) {
 - [Anti-pattern 2: e.g., "Don't use callbacks, use async/await"]
 
 ---
-*Created during /ralph-plan - This spec defines what Ralph should build in src/stdlib/[module-name].ts*
+
+## Discovered Patterns
+
+<!-- This section grows during implementation -->
+<!-- When you discover a useful pattern that should be in this module, add it here -->
+<!-- Format:
+### `newFunction(args): ReturnType`
+[Description of what it does]
+[When/why it was discovered]
+```typescript
+// Implementation
+```
+-->
+
+---
+*Created during /ralph-plan - This spec evolves as Ralph discovers new patterns during implementation*

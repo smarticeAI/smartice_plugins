@@ -1,76 +1,121 @@
-# Feature: [Feature Name]
+# PRD: [Feature Name]
 
-## Overview
+## Problem Statement
 
-[Brief description of this feature and its purpose]
+[Why does this feature exist? What problem are we solving? What's the current pain point?]
+
+## Goals
+
+- [Goal 1 - measurable outcome]
+- [Goal 2]
+
+## User Stories
+
+- As a [user type], I want to [action] so that [benefit]
+- As a [user type], I want to [action] so that [benefit]
+
+---
+
+## Technical Contract
+
+### Data Model
+
+```typescript
+interface Example {
+  id: number
+  name: string
+  createdAt: string
+}
+```
+
+### API Endpoints
+
+```typescript
+// Create
+POST /examples
+  Body: { name: string }
+  Response: Example
+  Errors: 400 (validation)
+
+// Read
+GET /examples
+  Query: ?filter=value&limit=10
+  Response: { items: Example[] }
+
+GET /examples/:id
+  Response: Example
+  Errors: 404 (not found)
+
+// Update
+PATCH /examples/:id
+  Body: { name?: string }
+  Response: Example
+  Errors: 404 (not found)
+
+// Delete
+DELETE /examples/:id
+  Response: { success: true }
+  Errors: 404 (not found)
+```
+
+---
 
 ## Requirements
 
-1. [Requirement 1]
+### Functional
+
+1. [Requirement 1 - what the system must do]
 2. [Requirement 2]
 3. [Requirement 3]
 
-## Acceptance Criteria
+### Non-Functional
 
-- [ ] [Criterion 1 - specific, testable condition]
-- [ ] [Criterion 2]
-- [ ] [Criterion 3]
+- **Performance**: [e.g., API responds within 100ms]
+- **Persistence**: [e.g., Data survives server restart]
+- **Validation**: [e.g., All inputs validated before processing]
 
-## Verification Checklist
-
-Define success before implementation. These bash commands should return 0 when the feature is properly integrated.
-
-```bash
-# File existence verification
-test -f src/services/new_service.ts
-
-# Import verification - check new module is imported in entry point
-grep -q "from.*new_service" src/main.ts
-
-# Registration verification - check new component is registered
-grep -q "app.register.*NewService" src/app.ts
-
-# Integration verification - check new code is wired into existing system
-grep -n "newFunction" src/index.ts | grep -q "."
-
-# Test file exists
-test -f src/services/__tests__/new_service.test.ts
-```
-
-**Common patterns by framework:**
-
-```bash
-# Node.js/Express - route registration
-grep -q "router\.\(get\|post\|put\|delete\)" src/routes/new_route.ts
-
-# Python/FastAPI - endpoint registration
-grep -q "@app\.\(get\|post\|put\|delete\)" src/app_fastapi.py
-
-# React - component export and usage
-grep -q "export.*NewComponent" src/components/NewComponent.tsx
-grep -q "<NewComponent" src/App.tsx
-
-# Go - handler registration
-grep -q "HandleFunc.*newHandler" cmd/server/main.go
-```
-
-## Technical Notes
-
-[Any technical considerations, constraints, or implementation hints]
+---
 
 ## Edge Cases
 
-- [Edge case 1]: [How to handle]
-- [Edge case 2]: [How to handle]
-
-## Dependencies
-
-- [Other spec file if this depends on another feature]
-- [External dependency if any]
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Empty required field | 400 with validation message |
+| Resource not found | 404 with "not found" message |
+| Invalid data type | 400 with type error message |
+| [Other edge case] | [Behavior] |
 
 ## Out of Scope
 
-[Explicitly list what is NOT part of this feature to prevent scope creep]
+Explicitly list what is NOT part of this feature:
+
+- [Feature X - will be added later]
+- [Feature Y - out of scope for this project]
+
+## Dependencies
+
+- `stdlib/errors` - Error handling utilities
+- `stdlib/validation` - Input validation schemas
+- [Other dependencies]
+
+---
+
+## Success Criteria
+
+How do we know this feature is complete?
+
+- [ ] All endpoints return correct response shapes
+- [ ] Validation errors return helpful messages
+- [ ] Data persists correctly
+- [ ] Tests cover happy path and edge cases
+- [ ] Type-check passes
+
+---
+
+## Discovered Requirements
+
+<!-- This section is updated by Ralph during implementation -->
+<!-- When Ralph discovers something not in the original spec, add it here -->
 
 ---
 

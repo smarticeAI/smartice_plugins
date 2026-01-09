@@ -1,7 +1,7 @@
 ---
 name: verification-auditor
 description: "Orchestrator agent that launches mechanical verification agents in parallel and consolidates results into verification-report.md. Use when IMPLEMENTATION_COMPLETE is detected."
-model: sonnet
+model: opus
 color: cyan
 ---
 
