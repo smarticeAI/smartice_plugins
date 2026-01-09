@@ -62,11 +62,14 @@ Study `IMPLEMENTATION_PLAN.md` for:
 - Phase organization (which phase are you in?)
 - Progress so far
 
-### 2. Read Specs
+### 2. Read Specs (Living PRDs - YOU CAN UPDATE THEM)
 Study `specs/*.md` for:
 - Technical Contract (data models, API shapes)
 - Requirements and edge cases
 - Success criteria
+- **Discovered Requirements** section (grows during implementation)
+
+**Specs are living documents.** If you discover new requirements during implementation, ADD them to the relevant spec. This is compound learning - specs evolve as you learn.
 
 ### 3. Read stdlib Patterns (if exists)
 If `stdlib/*.md` files exist, study them for:
@@ -74,11 +77,15 @@ If `stdlib/*.md` files exist, study them for:
 - The "right way" to do things in this codebase
 - Error handling conventions
 
-### 4. Read Lessons Learned
-Study `lessons-learned.md` for:
+### 4. Read Lessons Learned (YOU DECIDE)
+Study `lessons-learned.md` - this is written by the learning-agent (Opus).
+
+**You have agency**: Read these learnings and DECIDE which ones apply to your current task:
 - Patterns that worked in previous iterations
-- **Error Patterns with counts** - Note `**[N]**` prefixes
+- **Error Patterns with counts** - Note `**[N]**` prefixes (patterns at 2 are about to become Signs)
 - Discovered requirements
+
+Don't blindly follow everything - think about what's relevant to THIS item.
 
 ### 5. Check Signs Section Below
 **CRITICAL**: Signs are hard-learned anti-patterns. ALWAYS follow them.
@@ -87,20 +94,10 @@ Study `lessons-learned.md` for:
 
 ## Signs (Learned Anti-Patterns)
 
-Signs are errors that repeated 3+ times. They are auto-promoted from lessons-learned.md.
+Signs are errors that repeated 3+ times. They are auto-promoted by the learning-agent.
 **YOU MUST FOLLOW THESE** - they represent hard-learned lessons.
 
-<!--
-Main Claude: When you see **[3]** or higher in lessons-learned.md Error Patterns,
-ADD A NEW SIGN HERE using this format:
-
-### SIGN: {short title}
-- **Problem**: {what goes wrong}
-- **Solution**: {how to fix it}
-- **Added**: iteration {N}
-
-Then remove or reset the count in lessons-learned.md.
--->
+<!-- Signs are auto-added here by learning-agent when pattern count >= 3 -->
 
 ---
 
@@ -119,6 +116,20 @@ grep -m1 '^\- \[ \]' IMPLEMENTATION_PLAN.md
 - Follow patterns from lessons-learned.md
 - Match spec requirements exactly
 
+### Step 2.5: Update Specs If Needed (YOU DECIDE)
+During implementation, you may discover:
+- Edge cases not in the spec
+- Missing validation requirements
+- API shape adjustments needed
+- New error scenarios
+
+**If you discover something, update the relevant spec:**
+1. Find the spec in `specs/`
+2. Add to `## Discovered Requirements` section
+3. Format: `- [Iteration N] {discovery}`
+
+This is YOUR responsibility. The learning-agent tracks error patterns, but YOU evolve the specs based on implementation discoveries.
+
 ### Step 3: Verify It Works
 ```bash
 bun run type-check  # Must pass
@@ -135,39 +146,40 @@ Output this exact tag:
 
 ---
 
-## After Each Item (Compound Learning)
+## After EVERY Item (Compound Learning)
 
-When you output `<item>COMPLETE</item>`, the stop hook will:
-1. Trigger verification agents
-2. Feed back results
-3. Re-prompt you for the next item
+When you output `<item>COMPLETE</item>`, the stop-hook tells you to run 2 agents SEQUENTIALLY:
 
-**Your Learning Responsibilities** (before next item):
+### Agent 1: verification-auditor
+```
+Task(subagent_type="dev-ralph:verification-auditor",
+     prompt="Run verification checks. Write report to .ralph/verification-report.md")
+```
 
-1. **Update lessons-learned.md**:
-   - If new error: Add `**[1]** Error description → Fix`
-   - If repeat error: Increment count `**[2]**` → `**[3]**`
-   - Add successful patterns to "What Worked"
+Runs: type-check, lint, test, placeholder scan, integration check.
+Writes report to `.ralph/verification-report.md`.
 
-2. **Check for Sign Promotion**:
-   - If any error has count `**[3]**` or higher
-   - Add Sign to PROMPT.md Signs section
-   - Reset/remove the count in lessons-learned.md
+### Agent 2: learning-agent (Opus - the thinking brain)
+```
+Task(subagent_type="dev-ralph:learning-agent",
+     prompt="Update all learning artifacts based on verification. Read .ralph/verification-report.md first.")
+```
 
-3. **Read updated context** before starting next item
+Writes to:
+- **lessons-learned.md** - Error patterns with **[N]** counts, what worked, discoveries
+- Signs in PROMPT.md (ONLY when count >= 3 - hard rules)
+- Specs (discovered requirements)
+- IMPLEMENTATION_PLAN.md (issues found, marked [FOUND])
+- stdlib (useful patterns)
+
+**YOU read lessons-learned.md and DECIDE what to apply.** You have agency.
+
+### Then Continue
+
+- If items remain: Pick next unchecked item, implement it
+- If ALL items done: Output `<promise>VERIFIED_COMPLETE</promise>`
 
 **This is compound learning**: each iteration benefits from previous learnings.
-
----
-
-## When All Items Are Done
-
-After the LAST item is complete:
-1. Run full verification: `Task(subagent_type="dev-ralph:verification-auditor", ...)`
-2. Read `.ralph/verification-report.md`
-3. Update `lessons-learned.md` with final learnings
-4. If ALL checks pass: Output `<promise>VERIFIED_COMPLETE</promise>`
-5. If ANY check fails: Fix and re-verify
 
 ---
 
@@ -201,23 +213,27 @@ If stuck:
 
 ```
 ┌─────────────────────────────────────────┐
-│  ITERATION LOOP                         │
+│  ITERATION LOOP (Compound Learning)     │
 │                                         │
 │  1. Read context (plan, specs, stdlib,  │
 │     lessons-learned, Signs)             │
 │  2. Pick FIRST unchecked item           │
 │  3. Implement fully                     │
-│  4. Type-check                          │
-│  5. Mark [x]                            │
-│  6. Output: <item>COMPLETE</item>       │
+│  4. UPDATE SPECS if you discovered      │
+│     new requirements (YOU DECIDE)       │
+│  5. Type-check                          │
+│  6. Mark [x]                            │
+│  7. Output: <item>COMPLETE</item>       │
 │                                         │
-│  → Verification runs                    │
-│  → Update lessons-learned.md            │
-│  → Promote errors to Signs if count>=3  │
+│  → verification-auditor runs            │
+│  → learning-agent updates learnings     │
 │  → Next iteration starts                │
 │                                         │
+│  SPECS EVOLVE ← You update discoveries  │
+│  LESSONS GROW ← Learning-agent tracks   │
+│  SIGNS FORM   ← Patterns at count >= 3  │
+│                                         │
 │  UNTIL: All items done                  │
-│  THEN: Final verification               │
-│  THEN: <promise>VERIFIED_COMPLETE</promise>
+│  THEN: <promise>VERIFIED_COMPLETE</promise>│
 └─────────────────────────────────────────┘
 ```

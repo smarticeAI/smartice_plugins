@@ -114,9 +114,15 @@ How do we know this feature is complete?
 
 ## Discovered Requirements
 
-<!-- This section is updated by Ralph during implementation -->
-<!-- When Ralph discovers something not in the original spec, add it here -->
+**Main Claude updates this section during implementation.** When you discover requirements not in the original spec:
+
+1. Add them here with iteration number
+2. Format: `- [Iteration N] Discovery description`
+
+This is compound learning - specs EVOLVE as implementation reveals new requirements.
+
+<!-- Discoveries will be added below this line -->
 
 ---
 
-*Created during /ralph-plan phase*
+*Created during /ralph-plan phase. Evolved during /ralph-build.*
