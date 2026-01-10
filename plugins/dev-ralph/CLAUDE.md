@@ -2,21 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What This Plugin Does
+## What This Plugin Does (v2.0.0)
 
-Implements Geoffrey Huntley's "Ralph Wiggum technique" for automated development loops with developer-agent collaboration. Key concepts:
+Implements Geoffrey Huntley's "Ralph Wiggum technique" - a simple loop for automated development.
 
+**Key principles:**
 - **One item per loop** - Single task per iteration
-- **Stop hook loops** - Hook blocks exit and re-feeds PROMPT.md until `<promise>VERIFIED_COMPLETE</promise>`
-- **Two-phase completion** - Implementation complete → verification audit → verified complete
-- **Filesystem state** - All state in `.ralph/` directory (git-tracked, no database)
+- **Simple loop** - Stop hook blocks exit, feeds PROMPT.md back
+- **Backpressure** - Type-check/tests are the validation (no verification agents)
+- **Files are state** - specs/, IMPLEMENTATION_PLAN.md, lessons-learned.md
+- **No agents** - Main Claude handles everything inline
 
 ## Plugin Structure
 
 ```
 dev-ralph/
 ├── .claude-plugin/
-│   └── plugin.json              # Plugin metadata
+│   └── plugin.json              # Plugin metadata (v2.0.0)
 ├── commands/
 │   ├── ralph-plan.md            # Planning interview (/ralph-plan)
 │   ├── ralph-build.md           # Start implementation loop (/ralph-build)
@@ -25,9 +27,9 @@ dev-ralph/
 │   └── help.md                  # Documentation (/ralph-help)
 ├── hooks/
 │   ├── hooks.json               # Hook registration
-│   └── stop-hook.sh             # Two-phase completion loop logic
+│   └── stop-hook.sh             # Simple loop logic
 ├── agents/
-│   └── verification-auditor.md  # Verification subagent
+│   └── codebase-explorer.md     # For searching (optional, Haiku)
 ├── scripts/
 │   ├── setup-ralph-plan.sh      # Initialize .ralph/ directory
 │   ├── setup-ralph-build.sh     # Validate gate and start loop
@@ -35,16 +37,10 @@ dev-ralph/
 │   └── cancel-loop.sh           # Cancel with optional checkpoint
 ├── templates/
 │   ├── PROMPT.md.template       # Default loop prompt
-│   ├── spec.md.template         # Spec file template
-│   └── stdlib-pattern.md.template
-├── skills/
-│   └── ralph-workflow/
-│       ├── SKILL.md
-│       └── references/
-│           ├── planning-protocol.md
-│           └── anti-patterns.md
-├── DEV_RALPH_SPEC.md            # Full specification document
-└── README.md
+│   └── spec.md.template         # Spec file template
+└── skills/
+    └── ralph-workflow/
+        └── SKILL.md
 ```
 
 ## Commands
@@ -52,62 +48,71 @@ dev-ralph/
 | Command | Description |
 |---------|-------------|
 | `/ralph-plan [task]` | Start planning interview |
-| `/ralph-build [-v] [--dry-run]` | Start implementation loop |
+| `/ralph-build [--dry-run]` | Start implementation loop |
 | `/ralph-status` | Show loop status |
 | `/ralph-cancel [--checkpoint]` | Cancel loop |
 | `/ralph-help` | Show documentation |
 
-## Two-Phase Completion Flow
-
-1. **Implementation Phase**: Claude works through tasks, runs type-check
-2. When done: `<status>IMPLEMENTATION_COMPLETE</status>`
-3. **Verification Phase**: verification-auditor agent audits
-4. **Learning Phase**: verification-auditor updates `.ralph/lessons-learned.md`
-5. If passed: `<promise>VERIFIED_COMPLETE</promise>`
-6. Stop hook allows exit
-
-## Compound Learning (v1.1.0)
-
-Inspired by Ryan Carson's PRD approach and Geoffrey Huntley's Ralph Wiggum technique.
-
-### Key Features
-
-1. **lessons-learned.md** - Persistent learning document that accumulates across iterations:
-   - Discovered requirements
-   - Error patterns and fixes
-   - What worked well
-   - Anti-patterns to avoid
-
-2. **Git diff feedback** - Stop hook includes recent file changes in context to help Claude understand what changed.
-
-3. **No-progress detection** - Warns after 5 iterations without completing new tasks (prevents overbaking).
-
-### How It Works
+## The Loop (v2.0.0 - Simplified)
 
 ```
-Iteration N: Work → Verify → Learn → (compounds into next iteration)
+1. Read context (specs, stdlib, plan, signs, lessons)
+2. Pick FIRST unchecked [ ] item
+3. Implement fully (following stdlib patterns!)
+4. Run type-check (backpressure)
+5. Mark [x] when done
+6. Append learnings (optional)
+7. Continue to next item
+8. When ALL done: <promise>VERIFIED_COMPLETE</promise>
 ```
 
-Each iteration builds on previous learnings, making the loop smarter over time.
+**No agents needed.** Type-check IS the verification.
 
 ## State Files
 
-- `.ralph/loop-state.json` - Current loop state (iteration, phase, etc.)
-- `.ralph/PROMPT.md` - Loop configuration and instructions
-- `.ralph/IMPLEMENTATION_PLAN.md` - Task list with completion markers
-- `.ralph/specs/*.md` - Feature specifications
-- `.ralph/verification-report.md` - Verification audit results
+- `.ralph/loop-state.json` - Loop state: `{active, iteration, max_iterations, started_at}`
+- `.ralph/PROMPT.md` - Fed back each iteration
+- `.ralph/IMPLEMENTATION_PLAN.md` - Task list with `[ ]` and `[x]` markers
+- `.ralph/specs/*.md` - Feature specifications (WHAT to build)
+- `.ralph/stdlib/*.md` - Code patterns (HOW to build)
+- `.ralph/Signs.md` - Tuning instructions (optional)
+- `.ralph/lessons-learned.md` - Append-only discoveries (optional)
 
 ## Testing Changes
 
-After modifying plugin files, sync to installed location:
+**IMPORTANT: Claude Code uses the CACHE, not marketplace folders!**
+
+For development, create a symlink from cache to dev folder:
 ```bash
-cp -r . ~/.claude/plugins/marketplaces/smartice_plugins/plugins/dev-ralph/
+rm -rf ~/.claude/plugins/cache/smartice-plugin-market/dev-ralph/1.1.0
+ln -s $(pwd) ~/.claude/plugins/cache/smartice-plugin-market/dev-ralph/1.1.0
 ```
 
-Then restart Claude Code to pick up changes.
+Then restart Claude Code. Changes take effect immediately (no copy needed).
+
+## v2.0.0 Changes (Simplification)
+
+Based on comparing with:
+- Official `ralph-loop` plugin (claude-plugins-official)
+- snarktank/ralph implementation
+- Geoffrey Huntley's original vision (PDF)
+
+**Removed:**
+- All verification/learning agents (9 agents deleted)
+- Complex state machine (phases, retry counts)
+- Per-item `<item>COMPLETE</item>` signals
+- Agent orchestration in stop hook
+
+**Kept:**
+- Simple loop (stop hook → feed PROMPT.md → iterate)
+- codebase-explorer agent (for searching, optional)
+- Files as state (specs, plan, lessons)
+- Signs (tuning instructions)
+
+**Why:** Huntley's vision uses subagents for WORK (search, write), not for DECISIONS. Type-check is the backpressure. Main Claude makes all decisions.
 
 ## Reference
 
-- `DEV_RALPH_SPEC.md` - Full specification document
-- `ralph-wiggum` plugin in claude-plugins-official - Simpler reference implementation
+- `SIMPLIFICATION_PLAN.md` - Full rationale for v2.0.0 changes
+- `ralph-loop` plugin in claude-plugins-official - Reference implementation
+- https://ghuntley.com/ralph/ - Geoffrey Huntley's original post

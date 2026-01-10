@@ -1,5 +1,5 @@
 {
-  "description": "dev-ralph stop hook for two-phase completion loops with verification",
+  "description": "dev-ralph stop hook - simple loop, no agent orchestration",
   "hooks": {
     "Stop": [
       {

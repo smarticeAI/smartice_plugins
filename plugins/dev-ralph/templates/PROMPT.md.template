@@ -2,184 +2,123 @@
 # dev-ralph Configuration
 
 iteration_limit: 500      # Maximum iterations before auto-stop
-retry_limit: 5            # Retries before asking developer for help
-coverage_threshold: 80    # Test coverage percentage required
 verbosity: normal         # minimal | normal | verbose
 
-# Anti-cheat patterns (verification will grep for these)
-placeholder_patterns:
-  - "TODO"
-  - "FIXME"
-  - "unimplemented"
-  - "NotImplementedError"
-  - "throw new Error('Not implemented')"
-
 # Build commands for this project
-# Set these to match your project's toolchain
 build_commands:
-  type_check: "bun run type-check"   # Type checking command
+  type_check: "bun run type-check"   # Type checking command (fast backpressure)
   lint: "bun run lint"               # Linting command
   test: "bun run test"               # Test runner command
-  coverage: "bun run test:coverage"  # Test coverage command
-
-# Integration patterns to verify (supports regex: prefix)
-integration_patterns:
-  # - "app.register"
-  # - "regex:@(app|router)\\.(get|post|put|delete)"
-
-# Entry points for integration verification
-entry_points:
-  # - "src/main.ts"
-
-# Integration strictness: strict | warn | lenient
-integration_strictness: warn
 ---
 
-# PROMPT.md - Per-Item Implementation Loop
+# PROMPT.md - Ralph Wiggum Implementation Loop
 
-This file is fed to Claude at the start of each iteration.
+Based on Geoffrey Huntley's Ralph Wiggum technique.
+Simple loop, file-based state, backpressure from tests.
 
-## Core Principle: ONE ITEM AT A TIME
+## Core Principle: ONE ITEM PER ITERATION
 
-Each iteration, you implement **exactly ONE item** from the implementation plan:
-1. Pick the first unchecked `[ ]` item
-2. Implement it fully
-3. Verify it works
-4. Mark it `[x]`
-5. Output: `<item>COMPLETE</item>`
+Each iteration:
+1. Read context (specs, stdlib, plan, lessons)
+2. Pick the FIRST unchecked `[ ]` item
+3. Implement it fully (following stdlib patterns!)
+4. Run type-check (backpressure)
+5. Mark it `[x]`
+6. Append learnings to `lessons-learned.md` (if any)
+7. Output: `<item>COMPLETE</item>`
 
-The stop hook will re-feed this prompt for the next item until all items are done.
+The stop hook will re-feed this prompt for the next item.
+
+When ALL items are done: output `<promise>VERIFIED_COMPLETE</promise>`
 
 ---
 
-## Context Loading
+## Context Loading (DO THIS FIRST!)
 
-Before starting work, read these in order:
+Before implementing, READ these files in order:
 
-### 1. Read Implementation Plan
-Study `IMPLEMENTATION_PLAN.md` for:
-- The FIRST unchecked `[ ]` item - **this is your task**
-- Phase organization (which phase are you in?)
-- Progress so far
-
-### 2. Read Specs (Living PRDs - YOU CAN UPDATE THEM)
+### 1. Read Specs
 Study `specs/*.md` for:
-- Technical Contract (data models, API shapes)
+- Technical specifications (data models, API shapes)
 - Requirements and edge cases
 - Success criteria
-- **Discovered Requirements** section (grows during implementation)
 
-**Specs are living documents.** If you discover new requirements during implementation, ADD them to the relevant spec. This is compound learning - specs evolve as you learn.
+### 2. Read Standard Library
+Study `stdlib/*.md` for:
+- Code patterns to follow (HOW to build)
+- Anti-patterns to avoid
+- Technical standards for this project
 
-### 3. Read stdlib Patterns (if exists)
-If `stdlib/*.md` files exist, study them for:
-- Project-specific code patterns
-- The "right way" to do things in this codebase
-- Error handling conventions
+If stdlib is empty, that's OK. You can add patterns as you discover them.
 
-### 4. Read Lessons Learned (YOU DECIDE)
-Study `lessons-learned.md` - this is written by the learning-agent (Opus).
+### 3. Read Implementation Plan
+Study `IMPLEMENTATION_PLAN.md` for:
+- The FIRST unchecked `[ ]` item - **this is your task**
+- Phase organization
+- Progress so far
 
-**You have agency**: Read these learnings and DECIDE which ones apply to your current task:
-- Patterns that worked in previous iterations
-- **Error Patterns with counts** - Note `**[N]**` prefixes (patterns at 2 are about to become Signs)
+### 4. Read Signs (if exists)
+Study `Signs.md` for:
+- Hard-learned anti-patterns
+- ALWAYS follow these
+
+### 5. Read Lessons Learned (if exists)
+Study `lessons-learned.md` for:
+- Patterns that worked
+- Errors to avoid
 - Discovered requirements
 
-Don't blindly follow everything - think about what's relevant to THIS item.
-
-### 5. Check Signs Section Below
-**CRITICAL**: Signs are hard-learned anti-patterns. ALWAYS follow them.
-
 ---
 
-## Signs (Learned Anti-Patterns)
-
-Signs are errors that repeated 3+ times. They are auto-promoted by the learning-agent.
-**YOU MUST FOLLOW THESE** - they represent hard-learned lessons.
-
-<!-- Signs are auto-added here by learning-agent when pattern count >= 3 -->
-
----
-
-## Your Task: ONE ITEM
+## Your Task: Implement ONE Item
 
 **DO NOT implement multiple items.** Just the first unchecked one.
 
 ### Step 1: Identify Your Task
-```bash
-# Find the first unchecked item
-grep -m1 '^\- \[ \]' IMPLEMENTATION_PLAN.md
-```
+Find the first unchecked `[ ]` item in IMPLEMENTATION_PLAN.md
 
 ### Step 2: Implement It Fully
 - Write complete code (no placeholders!)
-- Follow patterns from lessons-learned.md
+- Follow patterns from stdlib/*.md
+- Apply lessons from lessons-learned.md
 - Match spec requirements exactly
 
-### Step 2.5: Update Specs If Needed (YOU DECIDE)
-During implementation, you may discover:
-- Edge cases not in the spec
-- Missing validation requirements
-- API shape adjustments needed
-- New error scenarios
-
-**If you discover something, update the relevant spec:**
-1. Find the spec in `specs/`
-2. Add to `## Discovered Requirements` section
-3. Format: `- [Iteration N] {discovery}`
-
-This is YOUR responsibility. The learning-agent tracks error patterns, but YOU evolve the specs based on implementation discoveries.
-
-### Step 3: Verify It Works
+### Step 3: Backpressure
 ```bash
-bun run type-check  # Must pass
+bun run type-check  # Must pass before moving on
 ```
+
+If type-check fails, fix errors before continuing.
 
 ### Step 4: Mark Complete
 Edit IMPLEMENTATION_PLAN.md: change `[ ]` to `[x]` for this item.
 
-### Step 5: Signal Done
+### Step 5: Append Learnings
+If you discovered something useful (pattern, gotcha, fix), append it to `lessons-learned.md`:
+```markdown
+## [Item Name] - [Date]
+- What worked: ...
+- What to avoid: ...
+- Pattern discovered: ...
+```
+Keep entries brief. Future iterations will read these.
+
+### Step 6: Signal Done
 Output this exact tag:
 ```
 <item>COMPLETE</item>
 ```
 
+The stop hook will detect this and re-feed the prompt for the next item.
+
 ---
 
-## After EVERY Item (Compound Learning)
+## When All Items Are Done
 
-When you output `<item>COMPLETE</item>`, the stop-hook tells you to run 2 agents SEQUENTIALLY:
-
-### Agent 1: verification-auditor
-```
-Task(subagent_type="dev-ralph:verification-auditor",
-     prompt="Run verification checks. Write report to .ralph/verification-report.md")
-```
-
-Runs: type-check, lint, test, placeholder scan, integration check.
-Writes report to `.ralph/verification-report.md`.
-
-### Agent 2: learning-agent (Opus - the thinking brain)
-```
-Task(subagent_type="dev-ralph:learning-agent",
-     prompt="Update all learning artifacts based on verification. Read .ralph/verification-report.md first.")
-```
-
-Writes to:
-- **lessons-learned.md** - Error patterns with **[N]** counts, what worked, discoveries
-- Signs in PROMPT.md (ONLY when count >= 3 - hard rules)
-- Specs (discovered requirements)
-- IMPLEMENTATION_PLAN.md (issues found, marked [FOUND])
-- stdlib (useful patterns)
-
-**YOU read lessons-learned.md and DECIDE what to apply.** You have agency.
-
-### Then Continue
-
-- If items remain: Pick next unchecked item, implement it
-- If ALL items done: Output `<promise>VERIFIED_COMPLETE</promise>`
-
-**This is compound learning**: each iteration benefits from previous learnings.
+After marking the LAST item `[x]`:
+1. Verify all items are complete
+2. Run final type-check
+3. Output: `<promise>VERIFIED_COMPLETE</promise>`
 
 ---
 
@@ -199,13 +138,14 @@ If you cannot implement something:
 
 ---
 
-## Error Recovery
+## Backpressure
 
-If stuck:
-1. Read lessons-learned.md for similar issues
-2. Check if a Sign applies
-3. Document what you tried
-4. Ask developer for guidance
+**Type-check is your validation.** Run it after each item.
+
+If it fails → fix before moving on.
+If it passes → item is done.
+
+This is the "fast wheel" - quick feedback, iterate rapidly.
 
 ---
 
@@ -213,27 +153,20 @@ If stuck:
 
 ```
 ┌─────────────────────────────────────────┐
-│  ITERATION LOOP (Compound Learning)     │
+│  ONE ITEM PER ITERATION                 │
 │                                         │
-│  1. Read context (plan, specs, stdlib,  │
-│     lessons-learned, Signs)             │
-│  2. Pick FIRST unchecked item           │
-│  3. Implement fully                     │
-│  4. UPDATE SPECS if you discovered      │
-│     new requirements (YOU DECIDE)       │
-│  5. Type-check                          │
-│  6. Mark [x]                            │
+│  1. Read context (specs, stdlib, plan)  │
+│  2. Pick FIRST unchecked [ ] item       │
+│  3. Implement (follow stdlib patterns)  │
+│  4. Type-check (backpressure)           │
+│  5. Mark [x]                            │
+│  6. Append learnings (if any)           │
 │  7. Output: <item>COMPLETE</item>       │
 │                                         │
-│  → verification-auditor runs            │
-│  → learning-agent updates learnings     │
-│  → Next iteration starts                │
-│                                         │
-│  SPECS EVOLVE ← You update discoveries  │
-│  LESSONS GROW ← Learning-agent tracks   │
-│  SIGNS FORM   ← Patterns at count >= 3  │
-│                                         │
-│  UNTIL: All items done                  │
-│  THEN: <promise>VERIFIED_COMPLETE</promise>│
+│  Loop feeds you next iteration.         │
+│  When ALL done:                         │
+│  <promise>VERIFIED_COMPLETE</promise>   │
 └─────────────────────────────────────────┘
 ```
+
+No agents. No complex signals. Just implement, verify, signal, repeat.

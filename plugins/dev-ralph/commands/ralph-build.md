@@ -1,110 +1,108 @@
 ---
-description: "Start Ralph implementation loop with two-phase completion and verification"
-argument-hint: "[-v|--verbose] [--dry-run]"
+description: "Start Ralph implementation loop - simple, no agents"
+argument-hint: "[--dry-run]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-build.sh *)", "Read"]
 ---
 
-# Ralph Build Phase
+# Ralph Build Phase (v3 - Simplified)
 
-You are starting the Ralph implementation loop. This will activate the Stop hook to create a continuous loop until all work is verified complete.
+Start the Ralph implementation loop. Based on Geoffrey Huntley's Ralph Wiggum technique.
+
+**One item per iteration**: read context, implement one item, type-check, mark done, signal.
+**No agents**: You handle everything inline.
+**Files are state**: specs/, IMPLEMENTATION_PLAN.md, lessons-learned.md
 
 ## Arguments
 
-Options provided: $ARGUMENTS
+Options: $ARGUMENTS
 
-- `-v` or `--verbose`: Show detailed progress
-- `--dry-run`: Show what would happen without starting the loop
+- `--dry-run`: Show what would happen without starting
 
-## Build Protocol
+## Start Protocol
 
-### Step 1: Validate Checklist Gate
+### Step 1: Validate and Initialize
 
-Run the setup script to validate and initialize:
+Run the setup script:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-build.sh $ARGUMENTS
 ```
 
-The script will:
-1. Check that `.ralph/specs/*.md` exists (at least one)
-2. Check that `.ralph/IMPLEMENTATION_PLAN.md` exists with items
-3. Check that `.ralph/PROMPT.md` exists with valid frontmatter
-4. Create `.ralph/loop-state.json` with initial state
-5. Output the initial prompt
+The script:
+1. Checks `.ralph/specs/*.md` exists
+2. Checks `.ralph/IMPLEMENTATION_PLAN.md` exists
+3. Checks `.ralph/PROMPT.md` exists
+4. Creates `.ralph/loop-state.json`
+5. Outputs the prompt
 
-If validation fails, the script will report what's missing and exit.
+### Step 2: Follow PROMPT.md
 
-### Step 2: Display Loop Start
+The Stop hook feeds PROMPT.md back each iteration. Per iteration:
 
-If validation passes, display:
+1. **Read context**: specs/*.md, IMPLEMENTATION_PLAN.md, lessons-learned.md
+2. Find FIRST unchecked `[ ]` item in IMPLEMENTATION_PLAN.md
+3. Implement it fully (no placeholders!)
+4. Run type-check (backpressure)
+5. Mark it `[x]` when done
+6. Output: `<item>COMPLETE</item>`
+
+### Step 3: Complete
+
+When ALL items are done:
 
 ```
-🚀 dev-ralph: Starting implementation loop
-═══════════════════════════════════════════
-
-Configuration (from PROMPT.md):
-  Iteration limit: [N]
-  Retry limit: [N]
-  Coverage threshold: [N]%
-  Verbosity: [level]
-
-Plan: [N] items to implement
-Specs: [N] specifications loaded
-
-The Stop hook is now active. The loop will continue until:
-  • <promise>VERIFIED_COMPLETE</promise> is output
-  • Iteration limit is reached
-  • /ralph-cancel is executed
-
-Starting iteration 1...
+<promise>VERIFIED_COMPLETE</promise>
 ```
 
-### Step 3: Begin Implementation
+## The Loop
 
-After displaying the start message, the PROMPT.md content will be fed to Claude by the Stop hook. Follow the instructions in PROMPT.md:
+```
+┌─────────────────────────────────────┐
+│  ONE ITEM PER ITERATION             │
+│                                     │
+│  1. Read context (specs, plan)      │
+│  2. Pick first unchecked item       │
+│  3. Implement fully                 │
+│  4. Type-check (backpressure)       │
+│  5. Mark [x]                        │
+│  6. Output: <item>COMPLETE</item>   │
+│                                     │
+│  Loop feeds next iteration.         │
+│  When ALL done:                     │
+│  <promise>VERIFIED_COMPLETE</promise>│
+└─────────────────────────────────────┘
+```
 
-1. Read specs/* to understand requirements
-2. Read IMPLEMENTATION_PLAN.md for priorities
-3. Read stdlib/* for coding patterns
-4. Pick the most important unfinished item
-5. Implement it fully (no placeholders!)
-6. Run type-check when done
-7. If passing, output `<status>IMPLEMENTATION_COMPLETE</status>`
+## Backpressure
 
-## Two-Phase Completion
+**Type-check is your validation.** Run after each item.
 
-### Phase 1: Implementation
-- Work on tasks from IMPLEMENTATION_PLAN.md
-- Run backpressure (type-check) after each task
-- When implementation is complete, output: `<status>IMPLEMENTATION_COMPLETE</status>`
+- Fails → fix before moving on
+- Passes → item is done
 
-### Phase 2: Verification
-- The Stop hook detects IMPLEMENTATION_COMPLETE
-- Run the verification-auditor agent
-- Check: coverage, lint, no placeholders, all specs addressed
-- Write report to `.ralph/verification-report.md`
-- If ALL checks pass: output `<promise>VERIFIED_COMPLETE</promise>`
-- If ANY check fails: fix issues and try again
+No verification agents needed. Type-check IS the verification.
 
-## Error Handling
+## Anti-Cheating
 
-- If type-check fails: fix errors (up to retry limit)
-- If stuck after 5 retries: pause and ask developer for help
-- If context overflows: auto-summarize and continue
-- Maximum 500 iterations (configurable)
+**NON-NEGOTIABLE:**
 
-## Anti-Cheating Rules
-
-These are critical - violations will cause verification to fail:
-
-1. NO placeholder implementations
-2. NO TODO comments in new code
-3. NO unimplemented stubs
+1. NO placeholder code (TODO, FIXME, stubs)
+2. NO empty function bodies
+3. NO unimplemented interfaces
 4. FULL implementations only
 
-## Important Notes
+## Loop Controls
 
-- The loop runs until VERIFIED_COMPLETE or limits reached
-- Use `/ralph-status` to check progress
-- Use `/ralph-cancel` to stop the loop
-- All state is in `.ralph/` directory (git-trackable)
+- `/ralph-status` - Check progress
+- `/ralph-cancel` - Stop the loop
+- Max iterations: configurable in PROMPT.md
+
+## State Files
+
+All in `.ralph/`:
+- `loop-state.json` - iteration counter
+- `PROMPT.md` - fed back each iteration
+- `IMPLEMENTATION_PLAN.md` - task tracking
+- `specs/*.md` - specifications
+- `Signs.md` - tuning instructions (optional)
+- `lessons-learned.md` - discoveries (append-only, optional)

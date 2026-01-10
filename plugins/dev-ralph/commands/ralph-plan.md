@@ -105,12 +105,30 @@ After the interview is complete, create:
 1. **`.ralph/specs/stdlib/*.md`** - stdlib module specs (if defined in Step 2.6)
 2. **`.ralph/stdlib/*.md`** - Code patterns for build loop injection
 3. **`.ralph/specs/*.md`** - One spec file per major feature/concern
-4. **`.ralph/lessons-learned.md`** - Using template from `${CLAUDE_PLUGIN_ROOT}/templates/lessons-learned.md.template`
+4. **`.ralph/lessons-learned.md`** - Initialize with template from `${CLAUDE_PLUGIN_ROOT}/templates/lessons-learned.md.template`
 5. **`.ralph/IMPLEMENTATION_PLAN.md`** - Prioritized task list with:
    - Phase 0: Project setup
    - Phase 1: stdlib modules (build first!)
    - Phase 2+: Features (use stdlib)
-6. **`.ralph/PROMPT.md`** - Using template from `${CLAUDE_PLUGIN_ROOT}/templates/PROMPT.md.template`
+
+### Customize PROMPT.md (Already Created by Setup Script)
+
+The setup script has already copied the full PROMPT.md template (172 lines).
+
+**You only need to customize the frontmatter:**
+
+Edit `.ralph/PROMPT.md` to update:
+```yaml
+build_commands:
+  type_check: "{project's type-check command}"
+  lint: "{project's lint command}"
+  test: "{project's test command}"
+```
+
+For Bun projects: `bun run type-check`, `bun run lint`, `bun test`
+For npm projects: `npm run type-check`, `npm run lint`, `npm test`
+
+**DO NOT rewrite PROMPT.md. Only customize the frontmatter.**
 
 Each feature spec should include:
 - Requirements

@@ -6,31 +6,46 @@
 set -euo pipefail
 
 RALPH_DIR=".ralph"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Create directory structure
 mkdir -p "$RALPH_DIR/specs/stdlib"
 mkdir -p "$RALPH_DIR/stdlib"
 
+# Copy PROMPT.md template (CRITICAL - do not let Claude generate a minimal version)
+if [[ -f "$PLUGIN_ROOT/templates/PROMPT.md.template" ]]; then
+  cp "$PLUGIN_ROOT/templates/PROMPT.md.template" "$RALPH_DIR/PROMPT.md"
+  echo "✅ Copied PROMPT.md template ($(wc -l < "$RALPH_DIR/PROMPT.md") lines)"
+else
+  echo "⚠️  Warning: PROMPT.md template not found at $PLUGIN_ROOT/templates/PROMPT.md.template"
+fi
+
+# Copy lessons-learned template
+if [[ -f "$PLUGIN_ROOT/templates/lessons-learned.md.template" ]]; then
+  cp "$PLUGIN_ROOT/templates/lessons-learned.md.template" "$RALPH_DIR/lessons-learned.md"
+  echo "✅ Copied lessons-learned.md template"
+fi
+
+# Copy stdlib README template
+if [[ -f "$PLUGIN_ROOT/templates/stdlib/README.md.template" ]]; then
+  cp "$PLUGIN_ROOT/templates/stdlib/README.md.template" "$RALPH_DIR/stdlib/README.md"
+  echo "✅ Copied stdlib/README.md template"
+fi
+
+echo ""
 echo "📋 dev-ralph: Planning phase initialized"
 echo ""
-echo "Directory structure created:"
+echo "Directory structure:"
 echo "  $RALPH_DIR/"
-echo "  ├── specs/"
-echo "  │   └── stdlib/    (stdlib interface specifications)"
-echo "  └── stdlib/        (code patterns → injected into build loop)"
+echo "  ├── specs/stdlib/  (stdlib interface specs)"
+echo "  ├── stdlib/        (code patterns)"
+echo "  ├── PROMPT.md      (loop instructions - from template)"
+echo "  └── lessons-learned.md (compound learning)"
 echo ""
 echo "Next steps:"
 echo "  1. Conduct structured interview"
-echo "  2. Analyze existing codebase patterns (if not greenfield)"
-echo "  3. Define stdlib modules in specs/stdlib/*.md (optional)"
-echo "  4. Create stdlib patterns in stdlib/*.md (for build loop injection)"
-echo "  5. Create feature specs in specs/*.md"
-echo "  6. Create lessons-learned.md (for compound learning)"
-echo "  7. Create IMPLEMENTATION_PLAN.md (stdlib as Phase 1)"
-echo "  8. Create PROMPT.md with Signs section"
-echo ""
-echo "Compound Learning:"
-echo "  • Signs: Anti-patterns added to PROMPT.md when errors repeat 3+ times"
-echo "  • stdlib: Patterns injected into build loop context"
-echo "  • lessons-learned.md: Error counts track toward Sign promotion"
+echo "  2. Create feature specs in specs/*.md"
+echo "  3. Create IMPLEMENTATION_PLAN.md"
+echo "  4. Customize PROMPT.md frontmatter (build_commands)"
 echo ""

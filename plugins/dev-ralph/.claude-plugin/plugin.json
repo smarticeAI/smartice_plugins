@@ -1,7 +1,7 @@
 {
   "name": "dev-ralph",
-  "version": "1.1.0",
-  "description": "Developer-agent Ralph Wiggum technique with compound learning (lessons-learned.md), git diff feedback, no-progress detection, two-phase verification, and structured planning",
+  "version": "2.0.0",
+  "description": "Geoffrey Huntley's Ralph Wiggum technique - simple loop, file-based state, backpressure from tests. No agents, no complex orchestration.",
   "author": {
     "name": "HengWoo"
   },
@@ -10,9 +10,8 @@
     "ralph-wiggum",
     "automation",
     "development-loop",
-    "planning",
-    "verification",
-    "quality-gates",
-    "compound-learning"
+    "simple",
+    "backpressure",
+    "huntley"
   ]
 }

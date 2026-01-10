@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# setup-ralph-build.sh
-# Validate checklist gate and initialize loop state for build phase
+# setup-ralph-build.sh (v3 - Simplified)
+# Validate gate and initialize simple loop state
 
 set -euo pipefail
 
@@ -11,48 +11,38 @@ PROMPT_FILE="$RALPH_DIR/PROMPT.md"
 PLAN_FILE="$RALPH_DIR/IMPLEMENTATION_PLAN.md"
 
 # Parse arguments
-VERBOSE=false
 DRY_RUN=false
-
 for arg in "$@"; do
   case $arg in
-    -v|--verbose)
-      VERBOSE=true
-      ;;
     --dry-run)
       DRY_RUN=true
       ;;
   esac
 done
 
-# Validation errors
+# Validation
 ERRORS=()
 
-# Check specs exist
 if [[ ! -d "$RALPH_DIR/specs" ]] || [[ -z "$(ls -A $RALPH_DIR/specs 2>/dev/null)" ]]; then
   ERRORS+=("No specs found in $RALPH_DIR/specs/")
 fi
 
-# Check plan exists
 if [[ ! -f "$PLAN_FILE" ]]; then
   ERRORS+=("No IMPLEMENTATION_PLAN.md found")
 fi
 
-# Check PROMPT.md exists
 if [[ ! -f "$PROMPT_FILE" ]]; then
   ERRORS+=("No PROMPT.md found")
 fi
 
-# Report errors if any
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
-  echo "❌ dev-ralph: Checklist gate failed"
+  echo "❌ dev-ralph: Gate failed"
   echo ""
-  echo "Missing requirements:"
   for err in "${ERRORS[@]}"; do
     echo "   • $err"
   done
   echo ""
-  echo "Run /ralph-plan to complete planning first."
+  echo "Run /ralph-plan first."
   exit 1
 fi
 
@@ -60,85 +50,50 @@ fi
 SPEC_COUNT=$(ls -1 "$RALPH_DIR/specs" 2>/dev/null | wc -l | tr -d ' ')
 PLAN_ITEMS=$(grep -c "^- " "$PLAN_FILE" 2>/dev/null || echo "0")
 
-# Parse frontmatter from PROMPT.md
-# Strip trailing YAML comments (e.g., "500  # comment" → "500") for clean shell variable values
-# Note: This is safe for numeric/enum fields but would break string values containing #
+# Parse iteration limit from PROMPT.md frontmatter
 FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$PROMPT_FILE" 2>/dev/null || echo "")
 ITERATION_LIMIT=$(echo "$FRONTMATTER" | grep '^iteration_limit:' | sed 's/iteration_limit: *//' | sed 's/#.*//' | tr -d ' ' || echo "500")
-RETRY_LIMIT=$(echo "$FRONTMATTER" | grep '^retry_limit:' | sed 's/retry_limit: *//' | sed 's/#.*//' | tr -d ' ' || echo "5")
-COVERAGE_THRESHOLD=$(echo "$FRONTMATTER" | grep '^coverage_threshold:' | sed 's/coverage_threshold: *//' | sed 's/#.*//' | tr -d ' ' || echo "80")
-VERBOSITY=$(echo "$FRONTMATTER" | grep '^verbosity:' | sed 's/verbosity: *//' | sed 's/#.*//' | tr -d ' ' || echo "normal")
-
-# Default values if not found
 ITERATION_LIMIT=${ITERATION_LIMIT:-500}
-RETRY_LIMIT=${RETRY_LIMIT:-5}
-COVERAGE_THRESHOLD=${COVERAGE_THRESHOLD:-80}
-VERBOSITY=${VERBOSITY:-normal}
 
-# Dry run mode
+# Dry run
 if [[ "$DRY_RUN" == "true" ]]; then
-  echo "🔍 dev-ralph: Dry run mode"
+  echo "🔍 dev-ralph: Dry run"
   echo ""
-  echo "Checklist gate: PASSED"
-  echo ""
-  echo "Would start with:"
+  echo "Gate: PASSED"
   echo "  Specs: $SPEC_COUNT files"
   echo "  Plan items: $PLAN_ITEMS"
   echo "  Iteration limit: $ITERATION_LIMIT"
-  echo "  Retry limit: $RETRY_LIMIT"
-  echo "  Coverage threshold: ${COVERAGE_THRESHOLD}%"
   echo ""
-  echo "Run without --dry-run to start the loop."
+  echo "Run without --dry-run to start."
   exit 0
 fi
 
-# Create loop state (includes progress tracking for overbaking prevention)
+# Create simple loop state
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-# Count initially completed items (ensure clean numeric value)
-INITIAL_COMPLETED=$(grep -c '^\- \[x\]' "$PLAN_FILE" 2>/dev/null || true)
-INITIAL_COMPLETED=${INITIAL_COMPLETED:-0}
-# Ensure it's a clean integer
-INITIAL_COMPLETED=$(echo "$INITIAL_COMPLETED" | tr -d '[:space:]')
 
 cat > "$STATE_FILE" << EOF
 {
   "active": true,
-  "phase": "implementation",
   "iteration": 1,
   "max_iterations": $ITERATION_LIMIT,
-  "retry_count": 0,
-  "retry_limit": $RETRY_LIMIT,
-  "coverage_threshold": $COVERAGE_THRESHOLD,
-  "started_at": "$TIMESTAMP",
-  "current_task": null,
-  "completed_tasks": [],
-  "verification_triggered": false,
-  "last_completed_count": $INITIAL_COMPLETED,
-  "stale_iterations": 0
+  "started_at": "$TIMESTAMP"
 }
 EOF
 
-echo "🚀 dev-ralph: Starting implementation loop"
-echo "═══════════════════════════════════════════"
+echo "🚀 dev-ralph: Starting loop"
+echo "═══════════════════════════"
 echo ""
-echo "Configuration (from PROMPT.md):"
-echo "  Iteration limit: $ITERATION_LIMIT"
-echo "  Retry limit: $RETRY_LIMIT"
-echo "  Coverage threshold: ${COVERAGE_THRESHOLD}%"
-echo "  Verbosity: $VERBOSITY"
+echo "Plan: $PLAN_ITEMS items"
+echo "Specs: $SPEC_COUNT files"
+echo "Limit: $ITERATION_LIMIT iterations"
 echo ""
-echo "Plan: $PLAN_ITEMS items to implement"
-echo "Specs: $SPEC_COUNT specifications loaded"
+echo "Loop continues until:"
+echo "  • <promise>VERIFIED_COMPLETE</promise>"
+echo "  • Iteration limit reached"
+echo "  • /ralph-cancel"
 echo ""
-echo "The Stop hook is now active. The loop will continue until:"
-echo "  • <promise>VERIFIED_COMPLETE</promise> is output"
-echo "  • Iteration limit is reached"
-echo "  • /ralph-cancel is executed"
-echo ""
-echo "Starting iteration 1..."
-echo ""
-echo "─────────────────────────────────────────────"
+echo "─────────────────────────────"
 echo ""
 
-# Output the prompt to start the loop
+# Output prompt to start
 cat "$PROMPT_FILE"
