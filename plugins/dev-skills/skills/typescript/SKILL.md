@@ -1,5 +1,6 @@
 ---
 name: typescript-strict
+version: 1.0.1
 description: "Advanced TypeScript patterns for writing strict, type-safe code — eliminating `any`, crafting generics, using conditional and mapped types, branded/opaque types, type narrowing, and diagnosing type errors. Use when working with TypeScript types, generics, type inference, type guards, removing `any` types, strict typing, type errors, `infer`, `extends`, conditional types, mapped types, template literal types, branded types, or utility types like `Partial`, `Record`, `ReturnType`, and `Awaited`. Also use when debugging cryptic TS compiler errors or refactoring loose types to strict alternatives."
 ---
 
@@ -51,12 +52,16 @@ function isUser(value: unknown): value is User {
     typeof value === 'object' &&
     value !== null &&
     'id' in value &&
-    'name' in value
+    typeof (value as Record<string, unknown>).id === 'number' &&
+    'name' in value &&
+    typeof (value as Record<string, unknown>).name === 'string'
   )
 }
 
 async function fetchUser(): Promise<User> {
-  const data: unknown = await (await fetch('/api/user')).json()
+  const res = await fetch('/api/user')
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+  const data: unknown = await res.json()
   if (!isUser(data)) throw new Error('Invalid user shape')
   return data
 }
@@ -71,6 +76,8 @@ function handleEvent(event: any) { ... }
 // GOOD — use the actual DOM types
 function handleClick(event: MouseEvent) { ... }
 function handleInput(event: Event) {
+  // Pragmatic compromise: `as HTMLInputElement` is acceptable for DOM event targets
+  // where the actual element type is known from context but not inferrable by TS
   const target = event.target as HTMLInputElement
   console.log(target.value)
 }
@@ -239,8 +246,8 @@ type ElementOf<T> = T extends (infer U)[] ? U : never
 // Extract function return type
 type ReturnOf<T> = T extends (...args: any[]) => infer R ? R : never
 
-// Extract Promise value
-type Awaited<T> = T extends Promise<infer U> ? Awaited<U> : T
+// Extract Promise value (simplified version of built-in Awaited<T>, available since TS 4.5)
+type UnwrapPromise<T> = T extends Promise<infer U> ? UnwrapPromise<U> : T
 
 // Extract object property type
 type GetData<T> = T extends { data: infer D } ? D : never
@@ -278,6 +285,8 @@ type Params = ExtractRouteParams<'/users/:id/posts/:postId'>
 Transform existing types property by property:
 
 ```ts
+// Built-in implementations shown for understanding:
+
 // Make all properties optional
 type Partial<T> = { [K in keyof T]?: T[K] }
 
@@ -310,13 +319,19 @@ type StringKeysOnly<T> = {
 ```ts
 type DeepReadonly<T> = T extends Function
   ? T
-  : T extends object
-    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-    : T
+  : T extends readonly (infer U)[]
+    ? readonly DeepReadonly<U>[]
+    : T extends object
+      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+      : T
 
-type DeepPartial<T> = T extends object
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : T
+type DeepPartial<T> = T extends Function
+  ? T
+  : T extends readonly (infer U)[]
+    ? DeepPartial<U>[]
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T
 ```
 
 ---
@@ -485,7 +500,7 @@ class QueryBuilder<TState extends { table: string | null }> {
 }
 
 QueryBuilder.create().from('users').build()  // OK
-QueryBuilder.create().build()                 // Error: table is null
+QueryBuilder.create().build()                 // Error: 'this' context type is not assignable
 ```
 
 ---

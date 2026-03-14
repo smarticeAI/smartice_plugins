@@ -1,5 +1,6 @@
 ---
 name: nodejs-best-practices
+version: 1.0.1
 description: "Domain-specific best practices for Node.js development covering async patterns, error handling, streams, testing with node:test, graceful shutdown, performance profiling, modules (ESM/CJS), caching, logging, and TypeScript integration via type stripping. Use when building, debugging, or optimizing Node.js applications — including async/await pitfalls, unhandled rejections, stream backpressure, flaky test diagnosis, CPU profiling, environment configuration, or running TypeScript natively with Node 22+. Trigger terms: Node.js, async patterns, streams, node:test, graceful shutdown, type stripping, profiling, event loop, unhandled rejection, backpressure."
 ---
 
@@ -7,45 +8,194 @@ description: "Domain-specific best practices for Node.js development covering as
 
 Use this skill for any Node.js work: building servers, CLI tools, libraries, or scripts. It covers the patterns that prevent the most common production incidents and developer frustration.
 
+---
+
 ## TypeScript with Type Stripping (Node 22.6+)
 
 Run TypeScript directly without a build step. Node strips type annotations at runtime — no transpilation.
 
-**Requirements for type stripping compatibility:**
-- Use `import type` for type-only imports
-- Use const objects instead of enums
-- Avoid namespaces and parameter properties
-- Use `.ts` extensions in imports
-
-```ts
-// greet.ts
-import type { IncomingMessage } from 'node:http'
-
-const greet = (name: string): string => `Hello, ${name}!`
-console.log(greet('world'))
-```
+Node.js 22.6+ supports running TypeScript files directly by stripping types at runtime. In Node.js 23.6+ and 24+, type stripping is enabled by default.
 
 ```bash
-node greet.ts  # Just works on Node 22.6+
+# Node.js 20.x and 22.x — enable with flag
+node --experimental-strip-types app.ts
+
+# Node.js 22.19+, 23.6+ and 24+ — just works
+node app.ts
 ```
 
-**tsconfig.json for type stripping:**
-```json
-{
-  "compilerOptions": {
-    "target": "esnext",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "verbatimModuleSyntax": true,
-    "erasableSyntaxOnly": true,
-    "noEmit": true,
-    "strict": true,
-    "skipLibCheck": true
+### Type stripping requirements
+
+Type stripping works by removing type annotations without transforming code. Your TypeScript must follow these rules:
+
+**Use `import type` for type-only imports:**
+
+```typescript
+// GOOD - type-only import
+import type { User, Config } from './types.ts';
+import { createUser } from './user.ts';
+
+// GOOD - inline type imports
+import { createUser, type User } from './user.ts';
+
+// BAD - may fail with type stripping
+import { User, createUser } from './user.ts';
+```
+
+**No enums — use const objects:**
+
+```typescript
+// BAD - enums don't work with type stripping
+enum Status {
+  Active = 'active',
+  Inactive = 'inactive',
+}
+
+// GOOD - const object with type
+const Status = {
+  Active: 'active',
+  Inactive: 'inactive',
+} as const;
+
+type Status = (typeof Status)[keyof typeof Status];
+```
+
+**No namespaces — use modules:**
+
+```typescript
+// BAD - namespaces don't work
+namespace Utils {
+  export function format(s: string): string {
+    return s.trim();
+  }
+}
+
+// GOOD - use modules
+export function format(s: string): string {
+  return s.trim();
+}
+```
+
+**No constructor parameter properties:**
+
+```typescript
+// BAD - parameter properties don't work
+class User {
+  constructor(public name: string, private age: number) {}
+}
+
+// GOOD - explicit property declaration
+class User {
+  name: string;
+  private age: number;
+
+  constructor(name: string, age: number) {
+    this.name = name;
+    this.age = age;
   }
 }
 ```
 
-Key: `erasableSyntaxOnly: true` catches non-erasable syntax (enums, namespaces, parameter properties) at type-check time, before Node fails at runtime.
+**Use `.ts` extensions in imports:**
+
+```typescript
+import { helper } from './helper.ts';
+import type { Config } from './types.ts';
+
+// JSON imports
+import config from './config.json' with { type: 'json' };
+```
+
+### tsconfig.json for type stripping
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+```
+
+Key options:
+- `noEmit`: No compilation, Node.js runs TypeScript directly
+- `allowImportingTsExtensions`: Allow `.ts` imports
+- `verbatimModuleSyntax`: Enforces type-only imports
+- `isolatedModules`: Ensures compatibility with type stripping
+
+### tsconfig.build.json for publishing
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "test"]
+}
+```
+
+Key build options:
+- `rewriteRelativeImportExtensions`: Rewrites `.ts` imports to `.js` in output
+- `declaration`: Generates `.d.ts` type declaration files
+- `declarationMap`: Generates source maps for declarations
+
+### package.json configuration
+
+```json
+{
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  }
+}
+```
 
 **When NOT to use type stripping:** If you need enums, decorators with `emitDecoratorMetadata`, or JSX — use a standard `tsc` build pipeline instead.
 
@@ -55,7 +205,7 @@ Key: `erasableSyntaxOnly: true` catches non-erasable syntax (enums, namespaces, 
 
 ### Classify errors: operational vs programmer
 
-```ts
+```typescript
 // Operational: expected failures (network timeout, file not found, invalid input)
 // → Handle gracefully, return error response, retry
 
@@ -63,71 +213,113 @@ Key: `erasableSyntaxOnly: true` catches non-erasable syntax (enums, namespaces, 
 // → Crash, fix the code
 ```
 
-### Shared error base class
+### Error factory function pattern
 
-```ts
-class AppError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly statusCode: number = 500,
-    public readonly isOperational: boolean = true
-  ) {
-    super(message)
-    this.name = this.constructor.name
-    Error.captureStackTrace(this, this.constructor)
-  }
+Use a factory function for custom errors. This pattern is compatible with type stripping (no parameter properties) and avoids class hierarchies:
+
+```typescript
+interface AppErrorOptions {
+  code: string;
+  statusCode?: number;
+  cause?: Error;
 }
 
-class NotFoundError extends AppError {
-  constructor(resource: string) {
-    super(`${resource} not found`, 'NOT_FOUND', 404)
-  }
+function createAppError(message: string, options: AppErrorOptions): Error {
+  const error = new Error(message, { cause: options.cause });
+  (error as any).code = options.code;
+  (error as any).statusCode = options.statusCode ?? 500;
+  Error.captureStackTrace(error, createAppError);
+  return error;
 }
 
-class ValidationError extends AppError {
-  constructor(message: string) {
-    super(message, 'VALIDATION_ERROR', 400)
-  }
+// Factory functions for common errors
+function notFound(resource: string): Error {
+  return createAppError(`${resource} not found`, { code: 'NOT_FOUND', statusCode: 404 });
 }
+
+function validationError(message: string): Error {
+  return createAppError(message, { code: 'VALIDATION_ERROR', statusCode: 400 });
+}
+
+function databaseError(message: string, cause?: Error): Error {
+  return createAppError(message, { code: 'DATABASE_ERROR', statusCode: 500, cause });
+}
+
+// Usage
+throw notFound('User');
+throw validationError('Email is required');
 ```
 
-### Async boundary handlers
+### Checking error codes
 
-```ts
-// Always catch at async boundaries — never let promises go unhandled
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
-  // In production: log to monitoring, then exit
-  process.exit(1)
-})
+Check errors by code, not by class:
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error)
-  // Always exit — state may be corrupted
-  process.exit(1)
-})
-```
-
-### Error propagation pattern
-
-```ts
-// Propagate typed errors through the call stack
-async function getUser(id: string): Promise<User> {
-  const row = await db.query('SELECT * FROM users WHERE id = $1', [id])
-  if (!row) throw new NotFoundError(`User ${id}`)
-  return row as User
+```typescript
+function isAppError(error: unknown): error is Error & { code: string; statusCode: number } {
+  return error instanceof Error && 'code' in error && 'statusCode' in error;
 }
 
-// Caller decides how to handle
 try {
-  const user = await getUser(id)
-} catch (err) {
-  if (err instanceof NotFoundError) {
-    reply.code(404).send({ error: err.message })
-  } else {
-    throw err  // re-throw unknown errors
+  await fetchUser(id);
+} catch (error) {
+  if (isAppError(error) && error.code === 'NOT_FOUND') {
+    return null;
   }
+  throw error;
+}
+```
+
+### Async error propagation
+
+```typescript
+async function fetchUser(id: string): Promise<User> {
+  try {
+    const user = await db.users.findById(id);
+    if (!user) {
+      throw notFound('User');
+    }
+    return user;
+  } catch (error) {
+    if (isAppError(error)) {
+      throw error;
+    }
+    throw databaseError('Failed to fetch user', error as Error);
+  }
+}
+```
+
+### Unhandled rejections and exceptions
+
+Do not handle `unhandledRejection` and `uncaughtException` manually. Use [close-with-grace](https://github.com/fastify/close-with-grace) which handles these automatically and triggers graceful shutdown. See the Graceful Shutdown section.
+
+### Never swallow errors
+
+```typescript
+// BAD - error is swallowed
+try {
+  await riskyOperation();
+} catch (error) {
+  // Do nothing
+}
+
+// GOOD - handle or re-throw
+try {
+  await riskyOperation();
+} catch (error) {
+  logger.error({ err: error }, 'Operation failed');
+  throw error;
+}
+```
+
+### Error cause chain
+
+Use the `cause` option to preserve error chains:
+
+```typescript
+try {
+  await externalService.call();
+} catch (error) {
+  throw new Error('Service call failed', { cause: error });
 }
 ```
 
@@ -135,71 +327,157 @@ try {
 
 ## Async Patterns
 
-### Parallel execution with error handling
+### Always prefer async/await
 
-```ts
-// Good: Promise.allSettled for independent tasks
-const results = await Promise.allSettled([
-  fetchUser(id),
-  fetchPermissions(id),
-  fetchPreferences(id),
-])
+```typescript
+// GOOD
+async function processItems(items: Item[]): Promise<Result[]> {
+  const results: Result[] = [];
+  for (const item of items) {
+    const result = await processItem(item);
+    results.push(result);
+  }
+  return results;
+}
 
-const [user, permissions, preferences] = results.map((r, i) => {
-  if (r.status === 'fulfilled') return r.value
-  console.error(`Task ${i} failed:`, r.reason)
-  return null
-})
+// AVOID - callback-style Promise chains
+function processItems(items: Item[]): Promise<Result[]> {
+  return Promise.resolve([])
+    .then((results) => {
+      return items.reduce((chain, item) => {
+        return chain.then((r) => processItem(item).then((res) => [...r, res]));
+      }, Promise.resolve(results));
+    });
+}
+```
 
-// Good: Promise.all when all must succeed
-const [user, posts] = await Promise.all([
-  fetchUser(id),
-  fetchPosts(id),
-])
+### Parallel execution with Promise.all
+
+```typescript
+async function fetchAllData(ids: string[]): Promise<Data[]> {
+  const promises = ids.map((id) => fetchData(id));
+  return Promise.all(promises);
+}
+```
+
+### Controlled concurrency with p-limit / p-map
+
+Limit concurrent operations to prevent resource exhaustion and extreme memory usage:
+
+```typescript
+import pLimit from 'p-limit';
+
+const limit = pLimit(5); // Max 5 concurrent operations
+
+const results = await Promise.all(
+  items.map((item) => limit(() => processItem(item)))
+);
+```
+
+Or use p-map for cleaner syntax:
+
+```typescript
+import pMap from 'p-map';
+
+const results = await pMap(items, processItem, { concurrency: 5 });
+```
+
+### Promise.allSettled for fault tolerance
+
+Use Promise.allSettled when some failures are acceptable. Return typed results — do NOT silently return null:
+
+```typescript
+async function fetchMultiple(urls: string[]): Promise<Map<string, string | Error>> {
+  const results = await Promise.allSettled(
+    urls.map((url) => fetch(url).then((r) => r.text()))
+  );
+
+  const map = new Map<string, string | Error>();
+  urls.forEach((url, i) => {
+    const result = results[i];
+    map.set(
+      url,
+      result.status === 'fulfilled' ? result.value : result.reason
+    );
+  });
+
+  return map;
+}
 ```
 
 ### Avoid common async pitfalls
 
-```ts
+```typescript
 // BAD: Sequential when it could be parallel
-const user = await fetchUser(id)
-const posts = await fetchPosts(id)  // doesn't depend on user!
+const user = await fetchUser(id);
+const posts = await fetchPosts(id);  // doesn't depend on user!
 
 // GOOD: Parallel
-const [user, posts] = await Promise.all([fetchUser(id), fetchPosts(id)])
+const [user, posts] = await Promise.all([fetchUser(id), fetchPosts(id)]);
 
 // BAD: forEach doesn't await
 items.forEach(async (item) => {
-  await processItem(item)  // Fire-and-forget!
-})
+  await processItem(item);  // Fire-and-forget!
+});
 
 // GOOD: for...of for sequential
 for (const item of items) {
-  await processItem(item)
+  await processItem(item);
 }
 
 // GOOD: Promise.all for parallel
-await Promise.all(items.map((item) => processItem(item)))
+await Promise.all(items.map((item) => processItem(item)));
 ```
 
-### Timeout pattern
+### AbortController for cancellation and timeouts
 
-```ts
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
-    ),
-  ])
+Use AbortController to cancel long-running operations. Always clear the timeout in `finally` to prevent timer leaks:
+
+```typescript
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+```
+
+### Avoid async in constructors
+
+Constructors cannot be async. Use factory functions instead:
+
+```typescript
+// BAD - constructor cannot await
+class Database {
+  constructor() {
+    // Cannot use await here
+  }
 }
 
-const data = await withTimeout(fetchData(), 5000)
+// GOOD - factory function
+class Database {
+  private constructor(private connection: Connection) {}
+
+  static async create(config: Config): Promise<Database> {
+    const connection = await connect(config);
+    return new Database(connection);
+  }
+}
+
+// Usage
+const db = await Database.create(config);
 ```
 
 ### Retry with exponential backoff
 
-```ts
+```typescript
 async function retry<T>(
   fn: () => Promise<T>,
   maxAttempts: number = 3,
@@ -207,14 +485,14 @@ async function retry<T>(
 ): Promise<T> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await fn()
+      return await fn();
     } catch (err) {
-      if (attempt === maxAttempts) throw err
-      const delay = baseDelay * Math.pow(2, attempt - 1)
-      await new Promise((resolve) => setTimeout(resolve, delay))
+      if (attempt === maxAttempts) throw err;
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  throw new Error('unreachable')
+  throw new Error('unreachable');
 }
 ```
 
@@ -222,61 +500,198 @@ async function retry<T>(
 
 ## Streams
 
-### Backpressure — the most common stream bug
+If the prompt mentions **CSV**, **ETL**, **ingestion**, **large files**, **transform streams**, **backpressure**, or **line-by-line processing**, prioritize `pipeline()` + explicit async-generator transforms.
 
-```ts
-import { createReadStream, createWriteStream } from 'node:fs'
+### Use pipeline for stream composition
 
-// BAD: Ignoring backpressure — memory will grow unbounded
-const readable = createReadStream('huge-file.csv')
-readable.on('data', (chunk) => {
-  writable.write(chunk)  // What if writable can't keep up?
-})
+Always use `pipeline` instead of `.pipe()` for proper error handling and cleanup:
 
-// GOOD: pipeline handles backpressure and cleanup
-import { pipeline } from 'node:stream/promises'
+```typescript
+import { pipeline } from 'node:stream/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { createGzip } from 'node:zlib';
 
-await pipeline(
-  createReadStream('huge-file.csv'),
-  transformStream,
-  createWriteStream('output.csv')
-)
+async function compressFile(input: string, output: string): Promise<void> {
+  await pipeline(
+    createReadStream(input),
+    createGzip(),
+    createWriteStream(output)
+  );
+}
 ```
 
-### Transform stream pattern
+### Async generators in pipeline
 
-```ts
-import { Transform } from 'node:stream'
+Use async generators for transformation:
 
-const upperCase = new Transform({
-  transform(chunk, encoding, callback) {
-    this.push(chunk.toString().toUpperCase())
-    callback()
-  },
-})
+```typescript
+import { pipeline } from 'node:stream/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
 
-// Or with the newer API
-import { Readable } from 'node:stream'
+async function* toUpperCase(source: AsyncIterable<Buffer>): AsyncGenerator<string> {
+  for await (const chunk of source) {
+    yield chunk.toString().toUpperCase();
+  }
+}
 
-const lines = Readable.from(inputIterable)
-  .map((line) => line.toString().toUpperCase())
-  .filter((line) => line.length > 0)
+async function processFile(input: string, output: string): Promise<void> {
+  await pipeline(
+    createReadStream(input),
+    toUpperCase,
+    createWriteStream(output)
+  );
+}
+```
+
+### Multiple transformations — chained async generators
+
+```typescript
+import { pipeline } from 'node:stream/promises';
+
+async function* parseLines(source: AsyncIterable<Buffer>): AsyncGenerator<string> {
+  let buffer = '';
+  for await (const chunk of source) {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      yield line;
+    }
+  }
+  if (buffer) yield buffer;
+}
+
+async function* filterNonEmpty(source: AsyncIterable<string>): AsyncGenerator<string> {
+  for await (const line of source) {
+    if (line.trim()) {
+      yield line + '\n';
+    }
+  }
+}
+
+await pipeline(
+  createReadStream('input.txt'),
+  parseLines,
+  filterNonEmpty,
+  createWriteStream('output.txt')
+);
+```
+
+### CSV/ETL pattern: pipeline + async transform + deduplicated enrichment
+
+For ingestion-style tasks, use an explicit `async function*` transform with deduped async lookups:
+
+```typescript
+import { pipeline } from 'node:stream/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { createCache } from 'async-cache-dedupe';
+
+const cache = createCache({
+  ttl: 60,
+  stale: 5,
+  storage: { type: 'memory' },
+});
+
+cache.define('lookupPlan', async (planId: string) => {
+  return await fetch(`https://billing.internal/plans/${planId}`).then(async (res) => await res.json());
+});
+
+async function* enrichCsvRows(source: AsyncIterable<Buffer>): AsyncGenerator<string> {
+  let tail = '';
+
+  for await (const chunk of source) {
+    tail += chunk.toString('utf8');
+    const lines = tail.split('\n');
+    tail = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (line.trim().length === 0) continue;
+      const [userId, planId] = line.split(',');
+      const plan = await cache.lookupPlan(planId); // concurrent requests dedupe by key
+      yield `${userId},${planId},${plan.tier}\n`;
+    }
+  }
+
+  if (tail.trim().length > 0) {
+    const [userId, planId] = tail.split(',');
+    const plan = await cache.lookupPlan(planId);
+    yield `${userId},${planId},${plan.tier}\n`;
+  }
+}
+
+await pipeline(
+  createReadStream('users.csv'),
+  enrichCsvRows,
+  createWriteStream('users-enriched.csv')
+);
 ```
 
 ### Async iteration over streams
 
-```ts
-import { createReadStream } from 'node:fs'
-import { createInterface } from 'node:readline'
+```typescript
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 
-const rl = createInterface({
-  input: createReadStream('data.csv'),
-  crlfDelay: Infinity,
-})
+async function processLines(filePath: string): Promise<void> {
+  const fileStream = createReadStream(filePath);
+  const rl = createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
 
-for await (const line of rl) {
-  // Process line by line — memory efficient
-  const [name, email] = line.split(',')
+  for await (const line of rl) {
+    await processLine(line);
+  }
+}
+```
+
+### Readable.from for creating streams
+
+```typescript
+import { Readable } from 'node:stream';
+
+async function* generateData(): AsyncGenerator<string> {
+  for (let i = 0; i < 100; i++) {
+    yield JSON.stringify({ id: i, timestamp: Date.now() }) + '\n';
+  }
+}
+
+const stream = Readable.from(generateData());
+```
+
+### Backpressure handling
+
+Respect backpressure signals:
+
+```typescript
+import { Writable } from 'node:stream';
+import { once } from 'node:events';
+
+async function writeData(
+  writable: Writable,
+  data: string[]
+): Promise<void> {
+  for (const chunk of data) {
+    const canContinue = writable.write(chunk);
+    if (!canContinue) {
+      await once(writable, 'drain');
+    }
+  }
+}
+```
+
+### Stream consumers (Node.js 18+)
+
+```typescript
+import { text, json, buffer } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
+
+async function readStreamAsJson<T>(stream: Readable): Promise<T> {
+  return json(stream) as Promise<T>;
+}
+
+async function readStreamAsText(stream: Readable): Promise<string> {
+  return text(stream);
 }
 ```
 
@@ -284,160 +699,612 @@ for await (const line of rl) {
 
 ## Testing with node:test
 
-### Basic patterns
+### Basic patterns with test context
 
-```ts
-import { describe, it, before, after, mock } from 'node:test'
-import assert from 'node:assert/strict'
+Use `t.assert` (test context) for assertions:
+
+```typescript
+import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 
 describe('UserService', () => {
-  let db: Database
+  let service: UserService;
+
+  before(() => {
+    service = new UserService();
+  });
+
+  it('should create a user', async (t) => {
+    const user = await service.create({ name: 'John' });
+    t.assert.equal(user.name, 'John');
+    t.assert.ok(user.id);
+  });
+
+  it('should throw on invalid input', async (t) => {
+    await t.assert.rejects(
+      () => service.create({ name: '' }),
+      { message: 'Name is required' }
+    );
+  });
+});
+```
+
+### Mocking with test context (t.mock)
+
+Use `t.mock` for automatic per-test cleanup — no manual `restoreAll` needed:
+
+```typescript
+import { describe, it } from 'node:test';
+
+describe('EmailService', () => {
+  it('should send email via provider', async (t) => {
+    const sendMock = t.mock.fn(async () => ({ success: true }));
+    const provider = { send: sendMock };
+    const service = new EmailService(provider);
+
+    await service.sendWelcome('user@example.com');
+
+    t.assert.equal(sendMock.mock.calls.length, 1);
+    t.assert.deepEqual(sendMock.mock.calls[0].arguments, [
+      'user@example.com',
+      'Welcome!',
+    ]);
+  });
+});
+```
+
+### Mocking methods
+
+```typescript
+import { describe, it } from 'node:test';
+
+describe('UserController', () => {
+  it('should fetch user from API', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () => ({
+      ok: true,
+      json: async () => ({ id: '1', name: 'John' }),
+    }));
+
+    const user = await fetchUser('1');
+    t.assert.equal(user.name, 'John');
+  });
+});
+```
+
+### Test hooks for setup/teardown
+
+Import lifecycle hooks from `node:test`:
+
+```typescript
+import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
+
+describe('Database tests', () => {
+  let db: Database;
 
   before(async () => {
-    db = await createTestDatabase()
-  })
+    db = await Database.connect(testConfig);
+  });
 
   after(async () => {
-    await db.close()
-  })
+    await db.disconnect();
+  });
 
-  it('creates a user', async () => {
-    const user = await createUser(db, { name: 'Alice' })
-    assert.equal(user.name, 'Alice')
-    assert.ok(user.id)
-  })
+  beforeEach(async () => {
+    await db.beginTransaction();
+  });
 
-  it('rejects duplicate email', async () => {
-    await createUser(db, { name: 'Bob', email: 'bob@test.com' })
-    await assert.rejects(
-      () => createUser(db, { name: 'Bob2', email: 'bob@test.com' }),
-      { code: 'DUPLICATE_EMAIL' }
-    )
-  })
-})
+  afterEach(async () => {
+    await db.rollback();
+  });
+
+  it('should insert record', async (t) => {
+    await db.insert({ name: 'test' });
+    const records = await db.findAll();
+    t.assert.equal(records.length, 1);
+  });
+});
 ```
 
-### Mocking
+### Snapshot testing
 
-```ts
-import { mock } from 'node:test'
+```typescript
+import { describe, it } from 'node:test';
 
-// Mock a module function
-const mockFetch = mock.fn(async () => ({ ok: true, json: async () => ({ id: 1 }) }))
-
-// Mock timers
-mock.timers.enable({ apis: ['setTimeout'] })
-mock.timers.tick(5000)
-
-// Reset after each test
-afterEach(() => {
-  mock.restoreAll()
-})
+describe('ReportGenerator', () => {
+  it('should generate expected report', async (t) => {
+    const report = await generateReport(sampleData);
+    t.assert.snapshot(report);
+  });
+});
 ```
 
-### Diagnosing flaky tests
+### EventEmitter timing in tests
 
-1. **Isolate**: Run with `--test-only` on the specific test
-2. **Check shared state**: Tests sharing DB, files, or globals?
-3. **Timer dependencies**: Using real `setTimeout`? Use `mock.timers`
-4. **Async teardown**: Previous test's cleanup racing with next test's setup?
-5. **Fix root cause** — retry logic is a diagnostic tool, not a fix
+Always register listeners before triggering the action that emits events. If you call `emit()` before `on()`, `once()`, or `events.once(...)` is attached, the event is lost and the test may hang or fail intermittently:
+
+```typescript
+import { EventEmitter, once } from 'node:events';
+
+it('waits for ready event', async (t) => {
+  const emitter = new EventEmitter();
+
+  // GOOD: subscribe first
+  const readyPromise = once(emitter, 'ready');
+
+  startWorkThatEmitsReady(emitter);
+
+  const [payload] = await readyPromise;
+  t.assert.equal(payload.status, 'ok');
+});
+```
+
+### Resource cleanup in tests
+
+```typescript
+it('should read file', async (t) => {
+  const handle = await fs.open('test.txt');
+  t.after(() => handle.close()); // Cleanup registered
+
+  const content = await handle.read();
+  t.assert.ok(content);
+});
+```
+
+### Running tests
 
 ```bash
-# Run single test in isolation
-node --test --test-only path/to/test.ts
+# Run all tests
+node --test
 
-# Run with concurrency=1 to check for ordering issues
-node --test --test-concurrency=1
+# Run specific file
+node --test src/user/user.service.test.ts
+
+# With TypeScript (Node.js 22.6+)
+node --test src/**/*.test.ts
+
+# With coverage
+node --test --experimental-test-coverage
+
+# Watch mode
+node --test --watch
+
+# Run single test by name
+node --test --test-name-pattern="should create user" src/user.test.ts
 ```
+
+---
+
+## Diagnosing Flaky Tests
+
+Flaky tests are tests that pass or fail intermittently without code changes. They erode trust in the test suite.
+
+### Identifying the culprit
+
+```bash
+# Show each test as it runs (tap format shows test file and name)
+node --test --test-reporter=tap
+
+# Set a global timeout and see which test exceeds it
+node --test --test-timeout=5000
+
+# Isolate by running files one at a time
+for f in src/**/*.test.ts; do
+  echo "Running: $f"
+  timeout 30s node --test "$f" || echo "TIMEOUT or FAIL: $f"
+done
+
+# Run with high concurrency to surface race conditions
+node --test --test-concurrency=10
+
+# Run the same test many times
+for i in {1..50}; do node --test src/flaky.test.ts || echo "Failed on run $i"; done
+```
+
+### Common causes
+
+**Timing and race conditions** — wait for actual conditions, not arbitrary timeouts:
+
+```typescript
+// BAD - Race condition with setTimeout
+it('should process after delay', async (t) => {
+  let processed = false;
+  processAsync(() => { processed = true; });
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+  t.assert.equal(processed, true); // May fail if processing takes > 100ms
+});
+
+// GOOD - Wait for the actual condition
+it('should process after delay', async (t) => {
+  const result = await processAsync();
+  t.assert.equal(result.processed, true);
+});
+```
+
+**Uncontrolled time dependencies** — use fixed dates or mock timers:
+
+```typescript
+// BAD - Depends on current time
+it('should format today', (t) => {
+  const result = formatDate(new Date());
+  t.assert.equal(result, '2024-01-15'); // Fails tomorrow
+});
+
+// GOOD - Mock Date with node:test
+it('should format today', (t) => {
+  t.mock.timers.enable({ apis: ['Date'] });
+  t.mock.timers.setTime(new Date('2024-01-15T12:00:00Z').getTime());
+
+  const result = formatDate(new Date());
+  t.assert.equal(result, '2024-01-15');
+});
+```
+
+**Port conflicts** — use dynamic ports:
+
+```typescript
+// BAD - Hardcoded port
+const server = await startServer({ port: 3000 }); // Conflicts with other tests
+
+// GOOD - Use port 0 (OS assigns available port)
+const server = await startServer({ port: 0 });
+const address = server.address();
+const port = address.port;
+```
+
+**Shared state between tests** — reset in beforeEach or use test-scoped state:
+
+```typescript
+describe('cache tests', () => {
+  let cache;
+
+  beforeEach(() => {
+    cache = new Map();
+  });
+
+  it('test 1', (t) => {
+    cache.set('key', 'value1');
+    t.assert.equal(cache.get('key'), 'value1');
+  });
+
+  it('test 2', (t) => {
+    t.assert.equal(cache.get('key'), undefined); // PASSES - fresh map
+  });
+});
+```
+
+**Unhandled promise rejections** — always await async operations:
+
+```typescript
+// BAD - Fire-and-forget async operation
+it('should send notification', async (t) => {
+  sendNotification(user); // Not awaited - may reject after test ends
+  t.assert.ok(true);
+});
+
+// GOOD - Await all async operations
+it('should send notification', async (t) => {
+  await sendNotification(user);
+  t.assert.ok(true);
+});
+```
+
+### Finding open handles
+
+```typescript
+import { describe, it, after } from 'node:test';
+import wtfnode from 'wtfnode';
+
+describe('Debug hanging tests', () => {
+  after(() => {
+    // Dump what's keeping Node.js alive
+    wtfnode.dump();
+  });
+
+  it('might hang', async () => {
+    // Your test
+  });
+});
+```
+
+### Prevention best practices
+
+- Use deterministic IDs in tests: `const id = \`test-user-${t.name}\``
+- Mock external services to avoid network flakiness
+- Use explicit waits instead of arbitrary timeouts
+- Isolate database tests with transactions (BEGIN/ROLLBACK in beforeEach/afterEach)
+- In CI, run with controlled concurrency: `node --test --test-concurrency=2`
 
 ---
 
 ## Graceful Shutdown
 
-```ts
-const server = createServer(app)
-const connections = new Set<Socket>()
+### Primary: close-with-grace
 
-server.on('connection', (conn) => {
-  connections.add(conn)
-  conn.on('close', () => connections.delete(conn))
-})
+Always use [close-with-grace](https://github.com/fastify/close-with-grace) for handling graceful shutdowns. It handles `SIGTERM`, `SIGINT`, `unhandledRejection`, and `uncaughtException` automatically:
 
-async function shutdown(signal: string) {
-  console.log(`Received ${signal}, shutting down gracefully`)
+```typescript
+import closeWithGrace from 'close-with-grace';
 
-  // 1. Stop accepting new connections
-  server.close()
-
-  // 2. Set a deadline
-  const forceExit = setTimeout(() => {
-    console.error('Forced shutdown after timeout')
-    process.exit(1)
-  }, 30_000)
-  forceExit.unref()
-
-  // 3. Close idle connections, mark active ones for close-after-response
-  for (const conn of connections) {
-    conn.end()
+closeWithGrace({ delay: 10000 }, async ({ signal, err }) => {
+  if (err) {
+    console.error('Error triggered shutdown:', err);
   }
+  console.log(`Received ${signal}, shutting down...`);
 
-  // 4. Close external resources
-  await Promise.allSettled([
-    db.end(),
-    cache.quit(),
-    queue.close(),
-  ])
+  await server.close();
+  await db.end();
+});
+```
 
-  console.log('Clean shutdown complete')
-  process.exit(0)
+### HTTP server with close-with-grace
+
+```typescript
+import { createServer } from 'node:http';
+import closeWithGrace from 'close-with-grace';
+
+const server = createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ status: 'ok' }));
+});
+
+server.listen(3000, () => {
+  console.log('Server listening on port 3000');
+});
+
+closeWithGrace({ delay: 10000 }, async ({ signal, err }) => {
+  if (err) {
+    console.error('Shutdown error:', err);
+  }
+  console.log(`${signal} received, closing server...`);
+
+  await new Promise<void>((resolve, reject) => {
+    server.close((err) => (err ? reject(err) : resolve()));
+  });
+
+  console.log('Server closed');
+});
+```
+
+### Multiple resources cleanup
+
+Clean up in reverse order of initialization:
+
+```typescript
+import closeWithGrace from 'close-with-grace';
+import { createServer } from 'node:http';
+
+const server = createServer(handler);
+const db = await connectDatabase();
+const redis = await connectRedis();
+
+server.listen(3000);
+
+closeWithGrace({ delay: 15000 }, async ({ signal, err }) => {
+  if (err) {
+    console.error('Error:', err);
+  }
+  console.log(`${signal} received`);
+
+  // Close in reverse order of initialization
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  console.log('HTTP server closed');
+
+  await redis.quit();
+  console.log('Redis connection closed');
+
+  await db.end();
+  console.log('Database connection closed');
+});
+```
+
+### Health checks that respect shutdown state
+
+```typescript
+import closeWithGrace from 'close-with-grace';
+
+let isShuttingDown = false;
+
+function healthHandler(req: Request, res: Response) {
+  if (isShuttingDown) {
+    return res.status(503).json({ status: 'shutting_down' });
+  }
+  return res.json({ status: 'healthy' });
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'))
-process.on('SIGINT', () => shutdown('SIGINT'))
+closeWithGrace({ delay: 10000 }, async ({ signal }) => {
+  isShuttingDown = true;
+  console.log(`${signal} received, marked as shutting down`);
+
+  // Wait for load balancer to stop sending traffic
+  await new Promise((r) => setTimeout(r, 5000));
+
+  await cleanup();
+});
+```
+
+### Kubernetes delay
+
+```typescript
+// Kubernetes sends SIGTERM, then waits terminationGracePeriodSeconds (default 30s)
+// Set delay slightly lower to ensure clean exit
+closeWithGrace({ delay: 25000 }, async ({ signal }) => {
+  console.log(`${signal} received`);
+  isShuttingDown = true;
+
+  // Wait for in-flight requests (k8s stops sending new traffic after SIGTERM)
+  await new Promise((r) => setTimeout(r, 5000));
+
+  await server.close();
+  await db.end();
+});
+```
+
+### Fallback: manual signal handling
+
+If you cannot use close-with-grace, handle signals manually with proper try/catch and non-zero exit on error:
+
+```typescript
+const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
+let isShuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`${signal} received, shutting down...`);
+
+  const timeout = setTimeout(() => {
+    console.error('Shutdown timeout, forcing exit');
+    process.exit(1);
+  }, 10000);
+
+  try {
+    await cleanup();
+    clearTimeout(timeout);
+    process.exit(0);
+  } catch (error) {
+    console.error('Shutdown error:', error);
+    clearTimeout(timeout);
+    process.exit(1);
+  }
+}
+
+for (const signal of signals) {
+  process.on(signal, () => shutdown(signal));
+}
 ```
 
 ---
 
-## Performance & Profiling
+## Performance and Profiling
 
-### CPU profiling
+### CPU profiling with @platformatic/flame
 
-```bash
-# Generate V8 CPU profile
-node --cpu-prof app.js
-# Opens in Chrome DevTools → Performance tab
-
-# Or with clinic.js for visual analysis
-npx clinic doctor -- node app.js
-npx clinic flame -- node app.js
-```
-
-### Event loop monitoring
-
-```ts
-// Detect event loop lag
-let lastCheck = performance.now()
-setInterval(() => {
-  const now = performance.now()
-  const lag = now - lastCheck - 1000  // expected 1000ms interval
-  if (lag > 100) {
-    console.warn(`Event loop lag: ${lag.toFixed(0)}ms`)
-  }
-  lastCheck = now
-}, 1000).unref()
-```
-
-### Memory leak detection
+Use [@platformatic/flame](https://github.com/platformatic/flame) for CPU profiling with flame graph visualization:
 
 ```bash
-# Heap snapshot
+npx @platformatic/flame app.ts
+```
+
+This starts your application with profiling enabled and generates an interactive flame graph.
+
+Markdown output for AI-assisted analysis:
+
+```bash
+npx @platformatic/flame --output markdown app.ts
+```
+
+This enables an agentic workflow: profile the app, get markdown output describing hotspots, feed the report to an AI assistant for optimization suggestions.
+
+Programmatic usage:
+
+```typescript
+import { profile } from '@platformatic/flame';
+
+const stop = await profile({
+  outputFile: 'profile.html',
+});
+
+// Run your workload
+await runBenchmark();
+
+await stop();
+```
+
+### Load testing with autocannon
+
+Use [autocannon](https://github.com/mcollina/autocannon) for HTTP benchmarking:
+
+```bash
+# Basic benchmark
+npx autocannon http://localhost:3000
+
+# With options: -c connections, -d duration, -p pipelined requests
+npx autocannon -c 100 -d 30 -p 10 http://localhost:3000
+
+# POST request with body
+npx autocannon -m POST -H "Content-Type: application/json" -b '{"name":"test"}' http://localhost:3000/users
+```
+
+Programmatic usage:
+
+```typescript
+import autocannon from 'autocannon';
+
+const result = await autocannon({
+  url: 'http://localhost:3000',
+  connections: 100,
+  duration: 30,
+  pipelining: 10,
+});
+
+console.log(autocannon.printResult(result));
+```
+
+### Profiling workflow
+
+1. **Establish baseline** — Run autocannon to get initial metrics
+2. **Profile** — Use @platformatic/flame to identify hotspots
+3. **Optimize** — Fix the identified bottlenecks
+4. **Verify** — Run autocannon again to measure improvement
+5. **Repeat** — Continue until performance goals are met
+
+### Built-in Node.js profiling
+
+```bash
+# Generate V8 profiling log
+node --prof app.js
+node --prof-process isolate-*.log > profile.txt
+
+# Heap snapshots via inspector
 node --inspect app.js
 # Open chrome://inspect → Take Heap Snapshot
-# Compare two snapshots to find growing allocations
 
-# Track heap growth
-node --max-old-space-size=512 app.js  # Limit heap to surface leaks faster
+# Diagnostic reports
+node --report-on-signal app.js
+kill -SIGUSR2 <pid>
+```
+
+### Avoid blocking the event loop
+
+```typescript
+// BAD - blocks event loop
+function hashPasswordSync(password: string): string {
+  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+}
+
+// GOOD - async operation
+function hashPassword(password: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, salt, 100000, 64, 'sha512', (err, key) => {
+      if (err) reject(err);
+      else resolve(key.toString('hex'));
+    });
+  });
+}
+```
+
+### Worker threads with Piscina
+
+Use [piscina](https://github.com/piscinajs/piscina) for CPU-intensive tasks:
+
+```typescript
+// worker.ts
+export default function heavyComputation(data: { input: string }): string {
+  // CPU-intensive work here
+  return result;
+}
+```
+
+```typescript
+// main.ts
+import Piscina from 'piscina';
+
+const piscina = new Piscina({
+  filename: new URL('./worker.ts', import.meta.url).href,
+});
+
+const result = await piscina.run({ input: 'data' });
 ```
 
 ### Common performance pitfalls
@@ -456,50 +1323,213 @@ node --max-old-space-size=512 app.js  # Limit heap to surface leaks faster
 
 ```json
 // package.json
-{ "type": "module" }
+{
+  "type": "module"
+}
 ```
 
-```ts
-// ESM imports — use file extensions
-import { readFile } from 'node:fs/promises'
-import { helper } from './utils.ts'  // .ts with type stripping, .js with tsc
+```typescript
+// Named exports (preferred)
+export function processData(data: Data): Result {
+  // ...
+}
 
-// Dynamic import (works in both ESM and CJS)
-const { default: chalk } = await import('chalk')
+export const CONFIG = {
+  timeout: 5000,
+};
+
+// Named imports
+import { processData, CONFIG } from './utils.js';
+```
+
+### File extensions
+
+Always include file extensions in ESM imports:
+
+```typescript
+// GOOD - explicit extension
+import { helper } from './helper.js';
+import config from './config.json' with { type: 'json' };
+
+// BAD - missing extension (works in bundlers but not native ESM)
+import { helper } from './helper';
+```
+
+### __dirname and __filename in ESM
+
+Use `import.meta.dirname` and `import.meta.filename` (Node.js 20.11+):
+
+```typescript
+import { join } from 'node:path';
+
+const configPath = join(import.meta.dirname, 'config.json');
+const currentFile = import.meta.filename;
+```
+
+### Dynamic imports
+
+```typescript
+async function loadPlugin(name: string): Promise<Plugin> {
+  const module = await import(`./plugins/${name}.js`);
+  return module.default;
+}
+
+// Conditional loading
+const { default: heavy } = await import('./heavy-module.js');
 ```
 
 ### CJS interop
 
-```ts
+```typescript
 // Import CJS from ESM — default import usually works
-import pkg from 'some-cjs-package'
+import pkg from 'some-cjs-package';
 
 // If that fails, use createRequire
-import { createRequire } from 'node:module'
-const require = createRequire(import.meta.url)
-const pkg = require('some-cjs-package')
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const pkg = require('some-cjs-package');
 ```
 
 ---
 
-## Logging
+## Logging with Pino
 
-### Use structured logging (Pino recommended)
+### Basic setup
 
-```ts
-import pino from 'pino'
+Use [pino](https://github.com/pinojs/pino) for fast, structured JSON logging:
+
+```typescript
+import pino from 'pino';
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
-  // Don't pretty-print in production — pipe to pino-pretty in dev
-})
+});
 
-// Always log with context
-logger.info({ userId, action: 'login' }, 'User logged in')
-logger.error({ err, requestId }, 'Request failed')
+logger.info({ userId: user.id }, 'User created');
+logger.error({ err, orderId: order.id }, 'Failed to process payment');
+```
+
+### Log levels
+
+```typescript
+// DEBUG - detailed information for debugging
+logger.debug({ itemId: item.id, step: 'validation' }, 'Processing item');
+
+// INFO - general operational information
+logger.info({ userId: user.id }, 'User created');
+
+// WARN - unexpected but handled situations
+logger.warn({ currentRate: 95, limit: 100 }, 'Rate limit approaching');
+
+// ERROR - errors that need attention
+logger.error({ err, orderId: order.id }, 'Failed to process payment');
+```
+
+### Transports
+
+Pino uses transports to process logs outside the main thread:
+
+```bash
+# Pretty printing in dev — pipe to pino-pretty
+node app.ts | pino-pretty
+```
+
+Or configure programmatically:
+
+```typescript
+import pino from 'pino';
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+    },
+  },
+});
+```
+
+Multiple transports:
+
+```typescript
+import pino from 'pino';
+
+const logger = pino({
+  transport: {
+    targets: [
+      {
+        target: 'pino-pretty',
+        options: { colorize: true },
+        level: 'info',
+      },
+      {
+        target: 'pino/file',
+        options: { destination: '/var/log/app.log' },
+        level: 'error',
+      },
+    ],
+  },
+});
+```
+
+### Child loggers
+
+Create child loggers with bound context:
+
+```typescript
+const requestLogger = logger.child({
+  requestId: req.id,
+  userId: req.user?.id,
+});
+
+requestLogger.info('Processing request');
+requestLogger.info({ itemId }, 'Item processed');
+```
+
+### Redaction
+
+```typescript
+const logger = pino({
+  redact: ['password', 'token', 'apiKey', 'req.headers.authorization'],
+});
+
+// Sensitive values are replaced with [Redacted]
+logger.info({ password: 'secret123' }, 'User login');
+// Output: {"password":"[Redacted]","msg":"User login"...}
+```
+
+### Debug module
+
+The [debug](https://github.com/debug-js/debug) module is for library/module authors to emit tracing information — not for application logging:
+
+```typescript
+import createDebug from 'debug';
+
+const debug = createDebug('mymodule:connection');
+
+debug('Connecting to %s:%d', host, port);
+debug('Query executed in %dms', duration);
+```
+
+```bash
+DEBUG=mymodule:* node app.ts
+```
+
+Node.js built-in `util.debuglog` works similarly without external dependencies:
+
+```typescript
+import { debuglog } from 'node:util';
+
+const debug = debuglog('mymodule');
+debug('Starting operation %s', operationId);
+```
+
+```bash
+NODE_DEBUG=mymodule node app.ts
 ```
 
 ### Rules
+
 - **Never** log sensitive data (tokens, passwords, PII)
 - **Always** include request/trace IDs for correlation
 - Use `logger.child({ requestId })` for per-request loggers
@@ -510,28 +1540,266 @@ logger.error({ err, requestId }, 'Request failed')
 
 ## Environment Configuration
 
-```ts
-// Validate at startup, fail fast
-function requireEnv(key: string): string {
-  const value = process.env[key]
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`)
-  }
-  return value
+### Loading environment files
+
+Use Node.js built-in `--env-file` flag:
+
+```bash
+# Load from .env file
+node --env-file=.env app.ts
+
+# Load multiple env files (later files override earlier ones)
+node --env-file=.env --env-file=.env.local app.ts
+```
+
+Programmatic API:
+
+```typescript
+import { loadEnvFile } from 'node:process';
+
+// Load .env from current directory
+loadEnvFile();
+
+// Load specific file
+loadEnvFile('.env.local');
+```
+
+### Validation with env-schema and TypeBox
+
+Use [env-schema](https://github.com/fastify/env-schema) with [TypeBox](https://github.com/sinclairzx81/typebox) for type-safe environment validation:
+
+```typescript
+import { envSchema } from 'env-schema';
+import { Type, Static } from '@sinclair/typebox';
+
+const schema = Type.Object({
+  PORT: Type.Number({ default: 3000 }),
+  DATABASE_URL: Type.String(),
+  API_KEY: Type.String({ minLength: 1 }),
+  LOG_LEVEL: Type.Union([
+    Type.Literal('debug'),
+    Type.Literal('info'),
+    Type.Literal('warn'),
+    Type.Literal('error'),
+  ], { default: 'info' }),
+});
+
+type Env = Static<typeof schema>;
+
+export const env = envSchema<Env>({ schema });
+```
+
+### Avoid NODE_ENV
+
+`NODE_ENV` is an antipattern. It conflates multiple concerns (environment detection, behavior toggling, optimization flags, security settings) into a single variable.
+
+```typescript
+// BAD - NODE_ENV conflates concerns
+if (process.env.NODE_ENV === 'development') {
+  enableDebugLogging();    // logging concern
+  disableRateLimiting();   // security concern
+  useMockDatabase();       // infrastructure concern
 }
 
+// GOOD - explicit variables for each concern
 const config = {
-  port: parseInt(process.env.PORT || '3000', 10),
-  databaseUrl: requireEnv('DATABASE_URL'),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isProduction: process.env.NODE_ENV === 'production',
-} as const
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    pretty: process.env.LOG_PRETTY === 'true',
+  },
+  security: {
+    rateLimitEnabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+    httpsOnly: process.env.HTTPS_ONLY === 'true',
+  },
+  database: {
+    url: process.env.DATABASE_URL,
+  },
+};
+```
 
-export default config
+### .env file structure
+
+```bash
+# .env.example - committed to git, documents all variables
+PORT=3000
+DATABASE_URL=postgresql://user:pass@localhost:5432/db
+API_KEY=your-api-key-here
+
+# .env - local development, NOT committed
+PORT=3000
+DATABASE_URL=postgresql://dev:dev@localhost:5432/myapp
+API_KEY=sk-dev-key-123
+
+# .env.test - test environment
+DATABASE_URL=postgresql://test:test@localhost:5432/myapp_test
 ```
 
 ### Rules
-- Validate ALL required env vars at startup
+
+- Validate ALL required env vars at startup — fail fast
 - Never use `process.env` deep in business logic — centralize in a config module
 - Use `.env.example` to document required variables (never commit `.env`)
 - Different env files per environment: `.env.development`, `.env.test`
+
+---
+
+## Caching
+
+### Cache selection quick guide
+
+- Use **`lru-cache`** for process-local, bounded in-memory reuse where deduplicating concurrent requests is not the main concern.
+- Use **`async-cache-dedupe`** when multiple concurrent calls can request the same key and you want one in-flight request per key.
+- In stream/ETL scenarios, prefer `async-cache-dedupe` for enrichment calls inside an `async function*` transform.
+
+### async-cache-dedupe
+
+Use [async-cache-dedupe](https://github.com/mcollina/async-cache-dedupe) for async operations with request deduplication:
+
+```typescript
+import { createCache } from 'async-cache-dedupe';
+
+const cache = createCache({
+  ttl: 60, // seconds
+  stale: 5, // serve stale while revalidating
+  storage: { type: 'memory' },
+});
+
+cache.define('getUser', async (id: string) => {
+  return await db.users.findById(id);
+});
+
+cache.define('getPost', {
+  ttl: 300,
+  stale: 30,
+}, async (id: string) => {
+  return await db.posts.findById(id);
+});
+
+// Usage - concurrent calls are deduplicated
+const user = await cache.getUser('123');
+const post = await cache.getPost('456');
+```
+
+Concurrent request deduplication:
+
+```typescript
+// These three concurrent calls result in only ONE database query
+const [user1, user2, user3] = await Promise.all([
+  cache.getUser('123'),
+  cache.getUser('123'),
+  cache.getUser('123'),
+]);
+```
+
+### Stream/ETL enrichment with deduplication
+
+```typescript
+import { createCache } from 'async-cache-dedupe';
+
+const cache = createCache({ ttl: 120, stale: 10, storage: { type: 'memory' } });
+
+cache.define('getPlan', async (planId: string) => {
+  return await db.plans.findById(planId);
+});
+
+async function* enrichRows(source: AsyncIterable<{ userId: string, planId: string }>) {
+  for await (const row of source) {
+    const plan = await cache.getPlan(row.planId); // one in-flight call per planId
+    yield { ...row, planName: plan.name };
+  }
+}
+```
+
+### Redis storage for distributed caching
+
+```typescript
+import { createCache } from 'async-cache-dedupe';
+import Redis from 'ioredis';
+
+const redis = new Redis();
+
+const cache = createCache({
+  ttl: 60,
+  storage: {
+    type: 'redis',
+    options: { client: redis },
+  },
+});
+```
+
+### LRU cache
+
+Use [lru-cache](https://github.com/isaacs/node-lru-cache) for bounded in-memory caching:
+
+```typescript
+import { LRUCache } from 'lru-cache';
+
+const cache = new LRUCache<string, User>({
+  max: 500,           // Maximum items
+  ttl: 1000 * 60 * 5, // 5 minutes
+  updateAgeOnGet: true,
+});
+
+cache.set('user:123', user);
+const cached = cache.get('user:123');
+```
+
+### Cache invalidation
+
+```typescript
+// Time-based
+const cache = createCache({
+  ttl: 60,    // Fresh for 60 seconds
+  stale: 30,  // Serve stale for 30 more seconds while revalidating
+});
+
+// Manual invalidation
+await cache.invalidate('getUser', '123');
+await cache.clear('getUser');
+await cache.clear();
+
+// Reference-based invalidation
+cache.define('getUser', {
+  references: (args, key, result) => [`user:${result.id}`],
+}, async (id: string) => {
+  return await db.users.findById(id);
+});
+
+cache.define('getUserPosts', {
+  references: (args, key, result) => [`user:${args[0]}`],
+}, async (userId: string) => {
+  return await db.posts.findByUserId(userId);
+});
+
+// Invalidate all cache entries referencing this user
+await cache.invalidateAll(`user:123`);
+```
+
+### Avoid memory leaks with unbounded caches
+
+```typescript
+// BAD - unbounded cache
+const cache = new Map();
+function addToCache(key: string, value: unknown) {
+  cache.set(key, value); // Never cleaned up
+}
+
+// GOOD - LRU cache with max size
+import { LRUCache } from 'lru-cache';
+
+const cache = new LRUCache<string, unknown>({
+  max: 500,
+  ttl: 1000 * 60 * 5,
+});
+
+// BAD - listener leak
+function subscribe(emitter: EventEmitter) {
+  emitter.on('event', handler); // Never removed
+}
+
+// GOOD - cleanup listeners
+function subscribe(emitter: EventEmitter): () => void {
+  emitter.on('event', handler);
+  return () => emitter.off('event', handler);
+}
+```
