@@ -77,6 +77,18 @@
       "version": "1.0.0",
       "category": "development",
       "keywords": ["nodejs", "typescript", "best-practices", "type-safety", "async", "streams"]
+    },
+    {
+      "name": "agent-browse",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/HengWoo/agent_browse.git",
+        "subdir": "plugin"
+      },
+      "description": "Real Chrome browser automation via MCP relay. Anti-bot bypass, login session reuse, real fingerprints. Multi-user with per-user auth tokens.",
+      "version": "2.0.0",
+      "category": "automation",
+      "keywords": ["browser", "automation", "chrome", "anti-bot", "cdp", "relay", "mcp"]
     }
   ]
 }
