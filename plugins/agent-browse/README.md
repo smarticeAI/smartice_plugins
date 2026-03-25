@@ -34,9 +34,11 @@ Token is provided by your admin.
 
 ### 3. Install Chrome Extension
 
+Download the extension from the [agent_browse repo](https://github.com/HengWoo/agent_browse/tree/main/extension) (click **Code → Download ZIP**, then extract the `extension/` folder).
+
 1. Open `chrome://extensions/` in Chrome
 2. Enable "Developer mode" (top right)
-3. Click "Load unpacked" → select the `extension/` directory from this repo
+3. Click "Load unpacked" → select the extracted `extension/` folder
 4. Click the extension icon → Options
 5. Set:
    - **Server URL**: `wss://browse.clembot.uk`
@@ -109,9 +111,11 @@ export AGENT_BROWSE_TOKEN="你的令牌"
 
 ### 3. 安装 Chrome 扩展
 
+从 [agent_browse 仓库](https://github.com/HengWoo/agent_browse/tree/main/extension) 下载扩展（点击 **Code → Download ZIP**，然后解压出 `extension/` 文件夹）。
+
 1. 在 Chrome 中打开 `chrome://extensions/`
 2. 开启右上角"开发者模式"
-3. 点击"加载已解压的扩展程序" → 选择本仓库的 `extension/` 目录
+3. 点击"加载已解压的扩展程序" → 选择解压后的 `extension/` 文件夹
 4. 点击扩展图标 → 选项
 5. 设置：
    - **服务器地址**: `wss://browse.clembot.uk`
